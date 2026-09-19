@@ -13,6 +13,8 @@ import { useInvestmentsStore } from '@/store/useInvestmentsStore';
 import { useProductsStore } from '@/store/useProductsStore';
 import { useSalesStore } from '@/store/useSalesStore';
 import { useClientsStore } from '@/store/useClientsStore';
+import { importFromGymShopExcel } from '@/lib/excelImporter';
+import { FileSpreadsheet } from 'lucide-react';
 
 export const SettingsScreen: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -75,6 +77,22 @@ export const SettingsScreen: React.FC = () => {
       }
     }
   };
+
+  const excelInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExcelChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const res = await importFromGymShopExcel(file);
+    if (res.success) {
+        showMessage('success', '¡Datos de tu Excel importados con éxito!');
+    } else {
+        showMessage('error', res.message);
+    }
+
+    if (excelInputRef.current) excelInputRef.current.value = '';
+    };
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto pb-24 md:pb-6">
@@ -147,6 +165,22 @@ export const SettingsScreen: React.FC = () => {
             onChange={handleFileChange}
             className="hidden"
           />
+
+          <button
+            onClick={() => excelInputRef.current?.click()}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all text-xs"
+            >
+            <FileSpreadsheet className="w-4 h-4" />
+            Cargar datos desde mi Excel (.xlsx)
+            </button>
+
+            <input
+            ref={excelInputRef}
+            type="file"
+            accept=".xlsx, .xls"
+            onChange={handleExcelChange}
+            className="hidden"
+            />
         </div>
 
         {/* DATOS DE EJEMPLO */}
