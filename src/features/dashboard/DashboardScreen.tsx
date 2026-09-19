@@ -57,7 +57,7 @@ export const DashboardScreen: React.FC = () => {
           </button>
         </div>
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900">Hola, Luis 👋</h1>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900">Hola, Josue 👋</h1>
           <p className="text-xs text-slate-400 font-medium">
             Resumen global de tus {activeInvestments} inversión(es) activa(s)
           </p>
