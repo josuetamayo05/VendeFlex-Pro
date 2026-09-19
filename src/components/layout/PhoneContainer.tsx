@@ -7,7 +7,7 @@ interface Props {
 
 export const PhoneContainer: React.FC<Props> = ({ children, sidebar }) => {
   return (
-    <div className="bg-slate-100 text-slate-800 antialiased selection:bg-blue-500 selection:text-white min-h-[100dvh]">
+    <div className="bg-slate-100 text-slate-800 antialiased selection:bg-blue-500 selection:text-white">
       {/* ===== DESKTOP / TABLET (≥ 768px) ===== */}
       <div className="hidden md:flex min-h-screen">
         {sidebar}
@@ -16,11 +16,16 @@ export const PhoneContainer: React.FC<Props> = ({ children, sidebar }) => {
         </main>
       </div>
 
-      {/* ===== MÓVIL UNIVERSAL (Diseño original limpio) ===== */}
-      <div className="md:hidden flex flex-col min-h-[100dvh] w-full bg-slate-50 relative pt-[env(safe-area-inset-top)]">
-        <div className="flex-1 flex flex-col w-full">
-          {children}
-        </div>
+      {/* ===== MÓVIL UNIVERSAL ===== */}
+      <div
+        className="md:hidden flex flex-col w-full bg-slate-50"
+        style={{
+          minHeight: '100dvh',
+          paddingTop: 'env(safe-area-inset-top)',
+          paddingBottom: 'calc(80px + env(safe-area-inset-bottom))',
+        }}
+      >
+        {children}
       </div>
     </div>
   );
