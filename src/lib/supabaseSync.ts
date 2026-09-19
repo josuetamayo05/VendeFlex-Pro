@@ -55,8 +55,10 @@ export const pullFromSupabase = async (): Promise<boolean> => {
 /**
  * Empuja todo el estado local actual a Supabase (Upsert)
  */
-export const pushToSupabase = async (): Promise<void> => {
-  if (!isSupabaseConfigured) return;
+export const pushToSupabase = async (): Promise<{ success: boolean; message: string }> => {
+  if (!isSupabaseConfigured) {
+    return { success: false, message: 'Faltan las variables de entorno de Supabase (VITE_SUPABASE_URL)' };
+  }
 
   try {
     const investments = useInvestmentsStore.getState().investments;
@@ -65,15 +67,24 @@ export const pushToSupabase = async (): Promise<void> => {
     const clients = useClientsStore.getState().clients;
     const transactions = useFinanceStore.getState().transactions;
 
-    if (investments.length > 0) await supabase.from('investments').upsert(investments);
-    if (products.length > 0) await supabase.from('products').upsert(products);
-    if (sales.length > 0) await supabase.from('sales').upsert(sales);
-    if (clients.length > 0) await supabase.from('clients').upsert(clients);
-    if (transactions.length > 0) await supabase.from('transactions').upsert(transactions);
+    const results = await Promise.all([
+      investments.length > 0 ? supabase.from('investments').upsert(investments) : Promise.resolve({ error: null }),
+      products.length > 0 ? supabase.from('products').upsert(products) : Promise.resolve({ error: null }),
+      sales.length > 0 ? supabase.from('sales').upsert(sales) : Promise.resolve({ error: null }),
+      clients.length > 0 ? supabase.from('clients').upsert(clients) : Promise.resolve({ error: null }),
+      transactions.length > 0 ? supabase.from('transactions').upsert(transactions) : Promise.resolve({ error: null }),
+    ]);
 
-    console.log('☁️ Datos subidos a Supabase con éxito');
-  } catch (err) {
-    console.error('❌ Error enviando datos a Supabase:', err);
+    const error = results.find((r) => r.error)?.error;
+    if (error) {
+      console.error('Error Supabase:', error);
+      return { success: false, message: `Error Supabase: ${error.message}` };
+    }
+
+    return { success: true, message: '¡Datos subidos a Supabase con éxito!' };
+  } catch (err: any) {
+    console.error('Error inesperado:', err);
+    return { success: false, message: err.message || 'Error inesperado al conectar' };
   }
 };
 

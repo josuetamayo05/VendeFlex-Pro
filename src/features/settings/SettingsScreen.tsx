@@ -81,11 +81,11 @@ export const SettingsScreen: React.FC = () => {
   };
 
   const handlePushToCloud = async () => {
-    try {
-      await pushToSupabase();
-      showMessage('success', '¡Datos locales subidos a Supabase!');
-    } catch {
-      showMessage('error', 'Error al subir datos a la nube');
+    const res = await pushToSupabase();
+    if (res.success) {
+      showMessage('success', res.message);
+    } else {
+      showMessage('error', res.message);
     }
   };
 
