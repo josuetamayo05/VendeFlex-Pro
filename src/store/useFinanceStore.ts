@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { safeStorage } from '@/lib/safeStorage';
 
-export type TransactionType = 'expense' | 'reinvestment' | 'withdrawal' | 'deposit';
+export type TransactionType = 'expense' | 'reinvestment';
 
 export interface Transaction {
   id: number;
@@ -10,20 +10,19 @@ export interface Transaction {
   concept: string;
   amountUSD: number;
   currency: 'USD' | 'CUP' | 'MLC';
-  fromInvestmentId?: number; // De qué inversión sale la ganancia
-  toInvestmentId?: number;   // A qué nueva inversión entra el capital
+  fromInvestmentId?: number;
+  toInvestmentId?: number;
   date: string;
   notes?: string;
 }
 
 interface FinanceState {
   transactions: Transaction[];
-  cajaUSD: number;
-  cajaCUP: number;
-  cajaMLC: number;
 
   addTransaction: (tx: Omit<Transaction, 'id' | 'date'>) => void;
   deleteTransaction: (id: number) => void;
+  getTotalExpensesUSD: () => number;
+  getTotalReinvestedUSD: () => number;
   getExpensesByInvestment: (investmentId: number) => number;
   getReinvestmentsByInvestment: (investmentId: number) => number;
 }
@@ -31,30 +30,7 @@ interface FinanceState {
 export const useFinanceStore = create<FinanceState>()(
   persist(
     (set, get) => ({
-      transactions: [
-        {
-          id: 1,
-          type: 'expense',
-          concept: 'Mensajería entrega Licras',
-          amountUSD: 5,
-          currency: 'USD',
-          fromInvestmentId: 1,
-          date: '2025-03-12',
-        },
-        {
-          id: 2,
-          type: 'reinvestment',
-          concept: 'Reinversión de P001 hacia Accesorios TEMU',
-          amountUSD: 100,
-          currency: 'USD',
-          fromInvestmentId: 1,
-          toInvestmentId: 2,
-          date: '2025-03-14',
-        },
-      ],
-      cajaUSD: 350,
-      cajaCUP: 45000,
-      cajaMLC: 120,
+      transactions: [],
 
       addTransaction: (data) => {
         const newTx: Transaction = {
@@ -72,6 +48,16 @@ export const useFinanceStore = create<FinanceState>()(
         set((state) => ({
           transactions: state.transactions.filter((t) => t.id !== id),
         })),
+
+      getTotalExpensesUSD: () =>
+        get()
+          .transactions.filter((t) => t.type === 'expense')
+          .reduce((sum, t) => sum + t.amountUSD, 0),
+
+      getTotalReinvestedUSD: () =>
+        get()
+          .transactions.filter((t) => t.type === 'reinvestment')
+          .reduce((sum, t) => sum + t.amountUSD, 0),
 
       getExpensesByInvestment: (investmentId) =>
         get()
