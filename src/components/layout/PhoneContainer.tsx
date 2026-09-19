@@ -7,7 +7,7 @@ interface Props {
 
 export const PhoneContainer: React.FC<Props> = ({ children, sidebar }) => {
   return (
-    <div className="bg-slate-100 text-slate-800 antialiased selection:bg-blue-500 selection:text-white">
+    <div className="bg-slate-100 text-slate-800 antialiased selection:bg-blue-500 selection:text-white min-h-[100dvh]">
       {/* ===== DESKTOP / TABLET (≥ 768px) ===== */}
       <div className="hidden md:flex min-h-screen">
         {sidebar}
@@ -16,9 +16,9 @@ export const PhoneContainer: React.FC<Props> = ({ children, sidebar }) => {
         </main>
       </div>
 
-      {/* ===== MÓVIL UNIVERSAL (Cualquier teléfono: iPhone, Android, etc.) ===== */}
-      <div className="md:hidden flex flex-col min-h-[100dvh] w-full bg-slate-50 relative">
-        {/* Espaciador garantizado para Reloj / Notch / Isla Dinámica */}
+      {/* ===== MÓVIL UNIVERSAL ===== */}
+      <div className="md:hidden flex flex-col min-h-[100dvh] w-full bg-slate-50 relative pb-36">
+        {/* Barra de protección para el reloj/notch */}
         <div className="w-full bg-white pt-[max(2.75rem,env(safe-area-inset-top))] flex-shrink-0" />
 
         {/* Contenido principal de la app */}

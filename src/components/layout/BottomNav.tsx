@@ -22,17 +22,14 @@ export const BottomNav: React.FC = () => {
   const navigateTo = useAppStore((s) => s.navigateTo);
 
   return (
-    <>
-      {/* Espaciador de reserva para que el contenido no quede detrás de la barra */}
-      <div className="h-16 md:hidden flex-shrink-0" aria-hidden="true" />
-
-      <nav
-        className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 flex justify-around items-center z-40 md:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.03)]"
-        style={{
-          paddingTop: '0.5rem',
-          paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
-        }}
-      >
+    <nav
+      className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 z-40 md:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.06)]"
+      style={{
+        paddingTop: '0.5rem',
+        paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
+      }}
+    >
+      <div className="flex justify-around items-center max-w-md mx-auto px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.key;
@@ -50,7 +47,7 @@ export const BottomNav: React.FC = () => {
             </button>
           );
         })}
-      </nav>
-    </>
+      </div>
+    </nav>
   );
 };
