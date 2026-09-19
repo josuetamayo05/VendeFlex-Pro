@@ -7,23 +7,22 @@ interface Props {
 
 export const PhoneContainer: React.FC<Props> = ({ children, sidebar }) => {
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-800">
-      {/* ===== DESKTOP / TABLET LAYOUT ===== */}
+    <div className="bg-slate-100 text-slate-800 antialiased selection:bg-blue-500 selection:text-white">
+      {/* ===== DESKTOP / TABLET (≥ 768px) ===== */}
       <div className="hidden md:flex min-h-screen">
-        {/* Sidebar desktop */}
         {sidebar}
-
-        {/* Contenido principal desktop */}
-        <main className="flex-1 overflow-y-auto bg-slate-50">
-          <div className="max-w-6xl mx-auto p-6 lg:p-8">
-            {children}
-          </div>
+        <main className="flex-1 overflow-y-auto bg-slate-50 min-h-screen">
+          <div className="max-w-6xl mx-auto p-6 lg:p-8">{children}</div>
         </main>
       </div>
 
-      {/* ===== MOBILE LAYOUT (mockup teléfono) ===== */}
-      <div className="md:hidden min-h-screen min-h-[100dvh] flex justify-center items-start">
-        <div className="w-full max-w-md bg-slate-50 min-h-screen min-h-[100dvh] shadow-2xl overflow-hidden flex flex-col border-x border-slate-200 relative pt-[env(safe-area-inset-top)]">
+      {/* ===== MÓVIL UNIVERSAL (Cualquier teléfono: iPhone, Android, Xiaomi, etc.) ===== */}
+      <div className="md:hidden flex flex-col min-h-[100dvh] w-full bg-slate-50 relative">
+        {/* Barra superior de protección (Notch / Isla Dinámica / Reloj) */}
+        <div className="w-full bg-white pt-[env(safe-area-inset-top)] flex-shrink-0" />
+
+        {/* Contenido de la app */}
+        <div className="flex-1 flex flex-col w-full pb-24">
           {children}
         </div>
       </div>
