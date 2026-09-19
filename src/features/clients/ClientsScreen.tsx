@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Users, Plus } from 'lucide-react';
+import { Users, Plus, Wallet } from 'lucide-react';
 import { useClientsStore } from '@/store/useClientsStore';
+import { useInvestmentsStore } from '@/store/useInvestmentsStore';
 import { getClientDebtUSD, getClientStatus } from '@/types';
 import { ClientCard } from './components/ClientCard';
 import { ClientFilters } from './components/ClientFilters';
@@ -11,16 +12,15 @@ export const ClientsScreen: React.FC = () => {
   const clients = useClientsStore((s) => s.clients);
   const selectedClientId = useClientsStore((s) => s.selectedClientId);
   const setSelectedClient = useClientsStore((s) => s.setSelectedClient);
+  const investments = useInvestmentsStore((s) => s.investments);
 
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'todos' | 'deben' | 'al_dia'>('todos');
+  const [selectedInvestmentId, setSelectedInvestmentId] = useState<string>('todas');
 
   const selectedClient = clients.find((c) => c.id === selectedClientId) ?? null;
 
-  // Totales
-  const totalDebtUSD = clients.reduce((sum, c) => sum + getClientDebtUSD(c), 0);
-  const clientsWithDebt = clients.filter((c) => getClientDebtUSD(c) > 0).length;
-
+  // Filtrado inteligente por Búsqueda, Estado y por INVERSIÓN
   const filtered = useMemo(() => {
     return clients
       .filter((c) => {
@@ -30,13 +30,24 @@ export const ClientsScreen: React.FC = () => {
           filter === 'todos' ||
           (filter === 'deben' && status !== 'al_dia') ||
           (filter === 'al_dia' && status === 'al_dia');
-        return matchSearch && matchFilter;
+
+        // Filtro por inversión
+        const matchInvestment =
+          selectedInvestmentId === 'todas' ||
+          c.investmentId?.toString() === selectedInvestmentId ||
+          c.debts.some((d) => d.investmentId?.toString() === selectedInvestmentId);
+
+        return matchSearch && matchFilter && matchInvestment;
       })
-      .sort((a, b) => getClientDebtUSD(b) - getClientDebtUSD(a)); // deudas primero
-  }, [clients, search, filter]);
+      .sort((a, b) => getClientDebtUSD(b) - getClientDebtUSD(a));
+  }, [clients, search, filter, selectedInvestmentId]);
+
+  // Totales
+  const totalDebtUSD = filtered.reduce((sum, c) => sum + getClientDebtUSD(c), 0);
+  const clientsWithDebt = filtered.filter((c) => getClientDebtUSD(c) > 0).length;
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50">
+    <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto">
       {/* HEADER */}
       <div className="p-5 bg-white border-b border-slate-100 space-y-3 sticky top-0 z-10">
         <div className="flex justify-between items-center">
@@ -46,8 +57,10 @@ export const ClientsScreen: React.FC = () => {
             </h1>
             <p className="text-[11px] text-slate-400 font-medium mt-0.5">
               {clientsWithDebt > 0
-                ? `${clientsWithDebt} con deuda · $${totalDebtUSD} USD (≈ $${(totalDebtUSD * EXCHANGE_RATE).toLocaleString('es-CU')} CUP)`
-                : `${clients.length} clientes · Sin deudas pendientes`}
+                ? `${clientsWithDebt} con deuda · $${totalDebtUSD.toFixed(2)} USD (≈ $${(
+                    totalDebtUSD * EXCHANGE_RATE
+                  ).toLocaleString('es-CU')} CUP)`
+                : `${filtered.length} clientes · Sin deudas pendientes`}
             </p>
           </div>
           <button
@@ -55,9 +68,11 @@ export const ClientsScreen: React.FC = () => {
               const name = prompt('Nombre del cliente:');
               if (!name) return;
               const phone = prompt('Teléfono (opcional):') || undefined;
+              const invId = selectedInvestmentId !== 'todas' ? Number(selectedInvestmentId) : investments[0]?.id;
               useClientsStore.getState().addClient({
                 name,
                 phone,
+                investmentId: invId,
                 tags: ['Nuevo'],
               });
             }}
@@ -65,6 +80,23 @@ export const ClientsScreen: React.FC = () => {
           >
             <Plus className="w-4 h-4" /> Nuevo
           </button>
+        </div>
+
+        {/* FILTRO POR INVERSIÓN */}
+        <div className="flex items-center gap-2">
+          <Wallet className="w-4 h-4 text-slate-400" />
+          <select
+            value={selectedInvestmentId}
+            onChange={(e) => setSelectedInvestmentId(e.target.value)}
+            className="w-full bg-slate-100 text-slate-800 font-extrabold text-xs px-3 py-2 rounded-xl border-none focus:outline-none"
+          >
+            <option value="todas">📦 Inversión: Todas las inversiones</option>
+            {investments.map((inv) => (
+              <option key={inv.id} value={inv.id.toString()}>
+                {inv.code} · {inv.name} ({inv.supplierName})
+              </option>
+            ))}
+          </select>
         </div>
 
         <ClientFilters
@@ -75,7 +107,7 @@ export const ClientsScreen: React.FC = () => {
         />
       </div>
 
-      {/* LISTA */}
+      {/* LISTA DE CLIENTES */}
       <div className="p-4 space-y-2.5">
         {filtered.map((client) => (
           <ClientCard
@@ -88,12 +120,12 @@ export const ClientsScreen: React.FC = () => {
         {filtered.length === 0 && (
           <div className="text-center py-16 text-slate-400 space-y-2">
             <Users className="w-10 h-10 mx-auto text-slate-300" />
-            <p className="text-xs font-bold">No se encontraron clientes</p>
+            <p className="text-xs font-bold">No se encontraron clientes para esta inversión</p>
           </div>
         )}
       </div>
 
-      {/* DETAIL MODAL */}
+      {/* MODAL DETALLE */}
       {selectedClient && (
         <ClientDetail
           client={selectedClient}

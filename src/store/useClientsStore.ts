@@ -1,11 +1,13 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { safeStorage } from '@/lib/safeStorage';
 import type { Client, ClientDebt } from '@/types';
 import { EXCHANGE_RATE } from '@/lib/constants';
 
 const mockClients: Client[] = [
   {
     id: 1,
+    investmentId: 1,
     name: 'María Pérez',
     phone: '5350121476',
     avatar: 'https://i.pravatar.cc/150?u=maria',
@@ -13,6 +15,7 @@ const mockClients: Client[] = [
     debts: [
       {
         id: 101,
+        investmentId: 1,
         amountUSD: 25,
         amountCUP: 25 * EXCHANGE_RATE,
         concept: 'Nike Sneaker + Top Gym',
@@ -25,6 +28,7 @@ const mockClients: Client[] = [
   },
   {
     id: 2,
+    investmentId: 1,
     name: 'Juan Rodríguez',
     phone: '5355987654',
     avatar: 'https://i.pravatar.cc/150?u=juan',
@@ -32,6 +36,7 @@ const mockClients: Client[] = [
     debts: [
       {
         id: 102,
+        investmentId: 1,
         amountUSD: 25,
         amountCUP: 8000,
         concept: 'Auriculares BT',
@@ -44,6 +49,7 @@ const mockClients: Client[] = [
   },
   {
     id: 3,
+    investmentId: 1,
     name: 'Laura Gómez',
     phone: '5355112233',
     avatar: 'https://i.pravatar.cc/150?u=laura',
@@ -116,7 +122,7 @@ export const useClientsStore = create<ClientsStore>()(
     }),
     {
       name: 'vendeflex-clients',
-      partialize: (state) => ({ clients: state.clients }),
+      storage: createJSONStorage(() => safeStorage),
     }
   )
 );

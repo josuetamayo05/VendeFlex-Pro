@@ -65,6 +65,7 @@ export type ClientStatus = 'al_dia' | 'debe' | 'moroso';
 
 export interface ClientDebt {
   id: number;
+  investmentId?: number; // ← Cambia a opcional con ?
   amountUSD: number;
   amountCUP: number;
   concept: string;
@@ -74,10 +75,11 @@ export interface ClientDebt {
 
 export interface Client {
   id: number;
+  investmentId?: number; // ← NUEVO: inversión principal asociada
   name: string;
   phone?: string;
   avatar?: string;
-  tags: string[]; // VIP, Frecuente, etc.
+  tags: string[];
   debts: ClientDebt[];
   totalSpentUSD: number;
   lastPurchase?: string;
