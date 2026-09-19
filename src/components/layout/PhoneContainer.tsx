@@ -17,12 +17,12 @@ export const PhoneContainer: React.FC<Props> = ({ children, sidebar }) => {
       </div>
 
       {/* ===== MÓVIL UNIVERSAL ===== */}
-      <div className="md:hidden flex flex-col min-h-[100dvh] w-full bg-slate-50 relative pb-36">
-        {/* Barra de protección para el reloj/notch */}
-        <div className="w-full bg-white pt-[max(2.75rem,env(safe-area-inset-top))] flex-shrink-0" />
+      <div className="md:hidden flex flex-col min-h-[100dvh] w-full bg-slate-50 relative">
+        {/* Barra superior de protección para el reloj/notch */}
+        <div className="w-full bg-white pt-[max(2.5rem,env(safe-area-inset-top))] flex-shrink-0" />
 
-        {/* Contenido principal de la app */}
-        <div className="flex-1 flex flex-col w-full">
+        {/* Contenido principal con espacio inferior amplio para scrollear sin ser tapado */}
+        <div className="flex-1 flex flex-col w-full pb-28">
           {children}
         </div>
       </div>
