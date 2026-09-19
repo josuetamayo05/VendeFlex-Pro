@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Camera, Wallet } from 'lucide-react';
+import { ChevronLeft, Wallet } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { useInvestmentsStore } from '@/store/useInvestmentsStore';
 import { useProductsStore } from '@/store/useProductsStore';
 import { PurchaseTypeSelector } from './components/PurchaseTypeSelector';
 import { ImportShippingCalculator } from './components/ImportShippingCalculator';
+import { ImagePicker } from '@/components/ui/ImagePicker';
 import { EXCHANGE_RATE } from '@/lib/constants';
 import type { PurchaseType, ProductOrigin } from '@/types';
 
@@ -61,7 +62,9 @@ export const CreateProductScreen: React.FC = () => {
       price,
       currency,
       stock,
-      image: imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=300&q=80',
+      image:
+        imageUrl ||
+        'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=300&q=80',
       cost,
       weightLbs: purchaseType === 'import' ? weightLbs : undefined,
     });
@@ -120,19 +123,12 @@ export const CreateProductScreen: React.FC = () => {
         {/* TIPO DE COMPRA */}
         <PurchaseTypeSelector value={purchaseType} onChange={setPurchaseType} />
 
-        {/* FOTO */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-4">
-          <div className="w-20 h-20 bg-slate-100 rounded-2xl flex flex-col items-center justify-center border-2 border-dashed border-slate-200 text-slate-400">
-            <Camera className="w-6 h-6 mb-1" />
-            <span className="text-[9px] font-bold">Photo</span>
-          </div>
-          <input
-            type="text"
-            placeholder="URL de imagen (opcional)"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-[11px] font-bold text-slate-800 focus:outline-none focus:border-blue-500"
-          />
+        {/* FOTO DEL PRODUCTO  ← AQUÍ ESTÁ LO NUEVO */}
+        <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
+          <label className="text-xs font-bold text-slate-500 mb-2 block">
+            Imagen del Producto
+          </label>
+          <ImagePicker value={imageUrl} onChange={setImageUrl} />
         </div>
 
         {/* FORMULARIO */}

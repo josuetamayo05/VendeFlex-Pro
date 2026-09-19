@@ -25,15 +25,15 @@ export type Category = 'Todas' | 'Calzado/Ropa' | 'Cosméticos' | 'Electrónica'
 // Interfaz de Producto
 export interface ProductItem {
   id: number;
-  investmentId: number;      // ← NUEVO: a qué inversión pertenece
+  investmentId: number;
   name: string;
   category: string;
   origin: ProductOrigin;
   price: number;
   currency: 'USD' | 'CUP';
-  stock: number;
+  stock: number;           // Stock disponible actual (Columna P)
   image: string;
-  cost?: number;             // Costo unitario en la moneda de origen
+  cost?: number;
   weightLbs?: number;
 }
 
