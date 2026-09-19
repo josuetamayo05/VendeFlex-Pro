@@ -3,7 +3,8 @@ import { useInvestmentsStore } from '@/store/useInvestmentsStore';
 import { useProductsStore } from '@/store/useProductsStore';
 import { useSalesStore } from '@/store/useSalesStore';
 import { useClientsStore } from '@/store/useClientsStore';
-import { useFinanceStore } from '@/store/useFinanceStore';
+import { useFinanceStore, type Transaction } from '@/store/useFinanceStore';
+import type { Investment, ProductItem, Sale, Client } from '@/types';
 
 /**
  * Carga todos los datos desde Supabase a la app
@@ -29,19 +30,19 @@ export const pullFromSupabase = async (): Promise<boolean> => {
     ]);
 
     if (investments && investments.length > 0) {
-      useInvestmentsStore.setState({ investments: investments as any });
+      useInvestmentsStore.setState({ investments: investments as Investment[] });
     }
     if (products && products.length > 0) {
-      useProductsStore.setState({ products: products as any });
+      useProductsStore.setState({ products: products as ProductItem[] });
     }
     if (sales && sales.length > 0) {
-      useSalesStore.setState({ sales: sales as any });
+      useSalesStore.setState({ sales: sales as Sale[] });
     }
     if (clients && clients.length > 0) {
-      useClientsStore.setState({ clients: clients as any });
+      useClientsStore.setState({ clients: clients as Client[] });
     }
     if (transactions && transactions.length > 0) {
-      useFinanceStore.setState({ transactions: transactions as any });
+      useFinanceStore.setState({ transactions: transactions as Transaction[] });
     }
 
     console.log('✅ Datos sincronizados desde la nube');
@@ -57,7 +58,10 @@ export const pullFromSupabase = async (): Promise<boolean> => {
  */
 export const pushToSupabase = async (): Promise<{ success: boolean; message: string }> => {
   if (!isSupabaseConfigured) {
-    return { success: false, message: 'Faltan las variables de entorno de Supabase (VITE_SUPABASE_URL)' };
+    return {
+      success: false,
+      message: 'Faltan las variables de entorno de Supabase (VITE_SUPABASE_URL)',
+    };
   }
 
   try {
@@ -82,15 +86,15 @@ export const pushToSupabase = async (): Promise<{ success: boolean; message: str
     }
 
     return { success: true, message: '¡Datos subidos a Supabase con éxito!' };
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error inesperado:', err);
-    return { success: false, message: err.message || 'Error inesperado al conectar' };
+    const errMsg = err instanceof Error ? err.message : 'Error inesperado al conectar';
+    return { success: false, message: errMsg };
   }
 };
 
 /**
  * Escucha cambios en Realtime (WebSockets)
- * Cuando el iPhone registra una venta, la Laptop recibe el evento y actualiza la pantalla al instante.
  */
 export const subscribeToRealtime = () => {
   if (!isSupabaseConfigured) return () => {};
