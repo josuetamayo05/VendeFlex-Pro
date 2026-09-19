@@ -1,14 +1,17 @@
 import React from 'react';
+import { useAppStore } from '@/store/useAppStore';
+import type { View, BottomTab } from '@/types';
 import {
   Home,
   Boxes,
   Users,
   ShoppingCart,
+  Settings,
   LogOut,
   Plus,
+  Wallet,
+  Landmark, // ← Icono para Finanzas/Bóveda
 } from 'lucide-react';
-import { useAppStore } from '@/store/useAppStore';
-import type { View, BottomTab } from '@/types';
 
 interface NavItem {
   key: string;
@@ -20,15 +23,13 @@ interface NavItem {
 
 
 
-import { Wallet } from 'lucide-react';
-
-import { Settings } from 'lucide-react';
 
 const navItems: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: Home, view: 'dashboard', tab: 'inicio' },
   { key: 'investments', label: 'Inversiones', icon: Wallet, view: 'investments' },
   { key: 'inventario', label: 'Inventario', icon: Boxes, view: 'inventario', tab: 'inventario' },
   { key: 'pos', label: 'Nueva Venta', icon: ShoppingCart, view: 'pos', tab: 'inicio' },
+  { key: 'finance', label: 'Bóveda / Finanzas', icon: Landmark, view: 'finance' }, // ← AÑADIDO
   { key: 'clientes', label: 'Clientes', icon: Users, view: 'clientes', tab: 'clientes' },
   { key: 'settings', label: 'Configuración', icon: Settings, view: 'settings' },
 ];

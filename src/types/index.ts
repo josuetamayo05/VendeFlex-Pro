@@ -8,7 +8,8 @@ export type View =
   | 'investments'
   | 'investment_detail'
   | 'create_investment'
-  | 'settings';
+  | 'settings'
+  | 'finance'; // ← AÑADIDO AQUÍ
 
 // Tipos de moneda soportados
 export type Currency = 'USD' | 'CUP' | 'MLC';

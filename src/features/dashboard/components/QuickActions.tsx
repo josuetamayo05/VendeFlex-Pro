@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, ShoppingBag, Wallet } from 'lucide-react';
+import { Plus, ShoppingBag, Landmark } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 
 export const QuickActions: React.FC = () => {
@@ -24,11 +24,11 @@ export const QuickActions: React.FC = () => {
       </button>
 
       <button
-        onClick={() => navigateTo('clientes', 'clientes')}
+        onClick={() => navigateTo('finance')}
         className="bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-2xl flex flex-col items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95 transition-all"
       >
-        <Wallet className="w-5 h-5" />
-        <span className="text-[10px] font-bold text-center leading-tight">Cobrar Fiado</span>
+        <Landmark className="w-5 h-5" />
+        <span className="text-[10px] font-bold text-center leading-tight">Bóveda</span>
       </button>
     </div>
   );

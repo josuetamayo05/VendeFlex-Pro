@@ -10,11 +10,24 @@ import { InvestmentsScreen } from '@/features/investments/InvestmentsScreen';
 import { InvestmentDetailScreen } from '@/features/investments/InvestmentDetailScreen';
 import { CreateInvestmentScreen } from '@/features/investments/CreateInvestmentScreen';
 import { SettingsScreen } from '@/features/settings/SettingsScreen';
+import { FinanceScreen } from '@/features/finance/FinanceScreen'; // ← IMPORTADO
 import { useAppStore } from '@/store/useAppStore';
-import { InstallTip } from '@/components/pwa/InstallTip';
+import { useEffect } from 'react';
+import { pullFromSupabase, subscribeToRealtime } from '@/lib/supabaseSync';
 
 export default function App() {
   const currentView = useAppStore((s) => s.currentView);
+
+  useEffect(() => {
+    // Al abrir la app, descarga lo último de Supabase
+    pullFromSupabase();
+
+    // Escucha cambios en tiempo real
+    const unsubscribe = subscribeToRealtime();
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const renderView = () => {
     switch (currentView) {
@@ -27,6 +40,7 @@ export default function App() {
       case 'investment_detail': return <InvestmentDetailScreen />;
       case 'create_investment': return <CreateInvestmentScreen />;
       case 'settings': return <SettingsScreen />;
+      case 'finance': return <FinanceScreen />; // ← RENDERIZADO
       default: return <DashboardScreen />;
     }
   };
@@ -35,7 +49,6 @@ export default function App() {
     <PhoneContainer sidebar={<DesktopSidebar />}>
       {renderView()}
       <BottomNav />
-      <InstallTip />
     </PhoneContainer>
   );
 }
