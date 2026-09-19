@@ -15,6 +15,8 @@ import { useSalesStore } from '@/store/useSalesStore';
 import { useClientsStore } from '@/store/useClientsStore';
 import { importFromGymShopExcel } from '@/lib/excelImporter';
 import { FileSpreadsheet } from 'lucide-react';
+import { pushToSupabase, pullFromSupabase } from '@/lib/supabaseSync';
+import { Cloud, CloudUpload, CloudDownload } from 'lucide-react';
 
 export const SettingsScreen: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -75,6 +77,25 @@ export const SettingsScreen: React.FC = () => {
         clearAllData();
         showMessage('success', 'Todos los datos han sido borrados');
       }
+    }
+  };
+
+  const handlePushToCloud = async () => {
+    try {
+      await pushToSupabase();
+      showMessage('success', '¡Datos locales subidos a Supabase!');
+    } catch {
+      showMessage('error', 'Error al subir datos a la nube');
+    }
+  };
+
+  const handlePullFromCloud = async () => {
+    try {
+      const ok = await pullFromSupabase();
+      if (ok) showMessage('success', '¡Datos descargados de la nube!');
+      else showMessage('error', 'Revisa la configuración de Supabase');
+    } catch {
+      showMessage('error', 'Error al descargar datos de la nube');
     }
   };
 
@@ -199,6 +220,36 @@ export const SettingsScreen: React.FC = () => {
             <RotateCcw className="w-4 h-4" />
             Restaurar datos de ejemplo
           </button>
+        </div>
+
+        {/* SECCIÓN SUPABASE CLOUD */}
+        <div className="bg-white rounded-2xl p-4 border border-slate-100 space-y-3">
+          <div>
+            <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
+              <Cloud className="w-4 h-4 text-blue-600" /> Sincronización en la Nube
+            </h2>
+            <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+              Sincroniza en tiempo real entre tu iPhone y tu Laptop
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={handlePushToCloud}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 active:scale-95 transition-all"
+            >
+              <CloudUpload className="w-4 h-4" />
+              Subir a Nube
+            </button>
+
+            <button
+              onClick={handlePullFromCloud}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-indigo-500/20 active:scale-95 transition-all"
+            >
+              <CloudDownload className="w-4 h-4" />
+              Descargar
+            </button>
+          </div>
         </div>
 
         {/* ZONA DE PELIGRO */}
