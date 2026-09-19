@@ -1,4 +1,3 @@
-// Tipos de vistas/pantallas
 export type View =
   | 'dashboard'
   | 'crear_producto'
@@ -9,7 +8,8 @@ export type View =
   | 'investment_detail'
   | 'create_investment'
   | 'settings'
-  | 'finance'; // ← AÑADIDO AQUÍ
+  | 'finance'
+  | 'reports'; // ← AÑADIDOADIDO AQUÍ
 
 // Tipos de moneda soportados
 export type Currency = 'USD' | 'CUP' | 'MLC';

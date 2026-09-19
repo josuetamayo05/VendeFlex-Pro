@@ -14,6 +14,7 @@ import { FinanceScreen } from '@/features/finance/FinanceScreen'; // ← IMPORTA
 import { useAppStore } from '@/store/useAppStore';
 import { useEffect } from 'react';
 import { pullFromSupabase, subscribeToRealtime } from '@/lib/supabaseSync';
+import { ReportsScreen } from '@/features/reports/ReportsScreen';
 
 export default function App() {
   const currentView = useAppStore((s) => s.currentView);
@@ -39,6 +40,7 @@ export default function App() {
       case 'investments': return <InvestmentsScreen />;
       case 'investment_detail': return <InvestmentDetailScreen />;
       case 'create_investment': return <CreateInvestmentScreen />;
+      case 'reports': return <ReportsScreen />;
       case 'settings': return <SettingsScreen />;
       case 'finance': return <FinanceScreen />; // ← RENDERIZADO
       default: return <DashboardScreen />;

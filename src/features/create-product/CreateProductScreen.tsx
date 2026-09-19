@@ -25,7 +25,7 @@ export const CreateProductScreen: React.FC = () => {
   const [stock, setStock] = useState(1);
   const [weightLbs, setWeightLbs] = useState(0.5);
   const [shippingRate, setShippingRate] = useState(5.0);
-  const [currency, setCurrency] = useState<'USD' | 'CUP'>('CUP');
+  const [currency, setCurrency] = useState<'USD' | 'CUP'>('USD');
   const [imageUrl, setImageUrl] = useState('');
 
   const shippingCostCUP =

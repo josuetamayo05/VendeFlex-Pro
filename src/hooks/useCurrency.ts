@@ -1,20 +1,21 @@
 import { useAppStore } from '@/store/useAppStore';
-import { EXCHANGE_RATE, MLC_RATE } from '@/lib/constants';
 
 export const useCurrency = () => {
   const currency = useAppStore((s) => s.currency);
+  const exchangeRate = useAppStore((s) => s.exchangeRate);
+  const mlcRate = useAppStore((s) => s.mlcRate);
 
   const formatFromUSD = (usdAmount: number): string => {
     if (currency === 'CUP') {
-      const cup = usdAmount * EXCHANGE_RATE;
-      return `$${cup.toLocaleString('es-CU')} CUP`;
+      const cup = usdAmount * exchangeRate;
+      return `$${cup.toLocaleString('es-CU', { maximumFractionDigits: 0 })} CUP`;
     }
     if (currency === 'MLC') {
-      const mlc = usdAmount / MLC_RATE;
+      const mlc = usdAmount / mlcRate;
       return `$${mlc.toFixed(2)} MLC`;
     }
-    return `$${usdAmount.toLocaleString('en-US')} USD`;
+    return `$${usdAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
   };
 
-  return { currency, formatFromUSD, EXCHANGE_RATE, MLC_RATE };
+  return { currency, formatFromUSD, EXCHANGE_RATE: exchangeRate, MLC_RATE: mlcRate };
 };

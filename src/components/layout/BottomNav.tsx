@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Boxes, Users, Wallet } from 'lucide-react';
+import { Home, Boxes, Users, BarChart3 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import type { BottomTab, View } from '@/types';
 
@@ -13,7 +13,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { key: 'inicio', label: 'Inicio', icon: Home, view: 'dashboard' },
   { key: 'inventario', label: 'Inventario', icon: Boxes, view: 'inventario' },
-  { key: 'reportes', label: 'Inversiones', icon: Wallet, view: 'investments' },
+  { key: 'reportes', label: 'Reportes', icon: BarChart3, view: 'reports' }, // ← Apunta a 'reports'
   { key: 'clientes', label: 'Clientes', icon: Users, view: 'clientes' },
 ];
 
