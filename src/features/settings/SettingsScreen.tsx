@@ -95,7 +95,7 @@ export const SettingsScreen: React.FC = () => {
     };
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto pb-24 md:pb-6">
+    <div className="flex-1 flex flex-col bg-slate-50">
       {/* HEADER */}
       <div className="p-5 bg-white border-b border-slate-100 sticky top-0 z-10">
         <h1 className="text-2xl font-black text-slate-900 tracking-tight">Configuración</h1>

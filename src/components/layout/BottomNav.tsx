@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Boxes, Users} from 'lucide-react';
+import { Home, Boxes, Users, Wallet } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import type { BottomTab, View } from '@/types';
 
@@ -9,8 +9,6 @@ interface NavItem {
   icon: React.ElementType;
   view: View;
 }
-
-import { Wallet } from 'lucide-react';
 
 const navItems: NavItem[] = [
   { key: 'inicio', label: 'Inicio', icon: Home, view: 'dashboard' },
@@ -24,24 +22,35 @@ export const BottomNav: React.FC = () => {
   const navigateTo = useAppStore((s) => s.navigateTo);
 
   return (
-    <div className="bg-white border-t border-slate-100 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex justify-around items-center z-20 md:hidden">
-      {navItems.map((item) => {
-        const Icon = item.icon;
-        const isActive = activeTab === item.key;
+    <>
+      {/* Espaciador fijo para que el contenido no quede tapado por el nav */}
+      <div className="h-20 md:hidden" aria-hidden="true" />
 
-        return (
-          <button
-            key={item.key}
-            onClick={() => navigateTo(item.view, item.key)}
-            className={`flex flex-col items-center gap-1 transition-colors ${
-              isActive ? 'text-blue-600' : 'text-slate-400'
-            }`}
-          >
-            <Icon className="w-5 h-5" />
-            <span className="text-[9px] font-bold">{item.label}</span>
-          </button>
-        );
-      })}
-    </div>
+      <nav
+        className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around items-center z-30 md:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.05)]"
+        style={{
+          paddingTop: '0.5rem',
+          paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))',
+        }}
+      >
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.key;
+
+          return (
+            <button
+              key={item.key}
+              onClick={() => navigateTo(item.view, item.key)}
+              className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition-colors ${
+                isActive ? 'text-blue-600' : 'text-slate-400'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="text-[10px] font-bold">{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+    </>
   );
 };

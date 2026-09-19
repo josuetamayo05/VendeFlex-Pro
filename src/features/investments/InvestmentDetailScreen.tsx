@@ -53,7 +53,7 @@ export const InvestmentDetailScreen: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto pb-24 md:pb-6">
+    <div className="flex-1 flex flex-col bg-slate-50">
       {/* HEADER */}
       <div className="p-4 bg-white border-b border-slate-100 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-3">

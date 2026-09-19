@@ -36,7 +36,7 @@ export const ClientsScreen: React.FC = () => {
   }, [clients, search, filter]);
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto pb-24 md:pb-6">
+    <div className="flex-1 flex flex-col bg-slate-50">
       {/* HEADER */}
       <div className="p-5 bg-white border-b border-slate-100 space-y-3 sticky top-0 z-10">
         <div className="flex justify-between items-center">

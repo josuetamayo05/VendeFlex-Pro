@@ -64,7 +64,7 @@ export const DashboardScreen: React.FC = () => {
         </div>
       </div>
 
-      <div className="p-5 space-y-4 overflow-y-auto flex-1 pb-24 md:pb-6">
+      <div className="p-5 space-y-4">
         <KPICard
           label="Ganancia Total Real"
           value={formatFromUSD(totalProfit)}

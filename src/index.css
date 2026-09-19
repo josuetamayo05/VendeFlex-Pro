@@ -2,22 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Safe area para iPhone (notch / Dynamic Island / home indicator) */
-html,
-body,
-#root {
+/* Fix scroll iPhone */
+html, body, #root {
   height: 100%;
-  overscroll-behavior: none;
+  overflow-x: hidden;
 }
 
 body {
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
-  /* Evita el bounce scroll de iOS en la app */
   overscroll-behavior-y: none;
+  min-height: 100vh;
+  min-height: 100svh;
 }
 
-/* Padding safe area para el bottom nav */
+/* Evita el zoom en inputs en iOS Safari */
+input, textarea, select {
+  font-size: 16px !important;
+}
+
+@media (min-width: 768px) {
+  input, textarea, select {
+    font-size: 14px !important;
+  }
+}
+
+/* Safe areas */
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
 }
