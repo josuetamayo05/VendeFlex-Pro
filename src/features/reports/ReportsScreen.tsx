@@ -27,6 +27,8 @@ import { useInvestmentsStore } from '@/store/useInvestmentsStore';
 import { useCurrency } from '@/hooks/useCurrency';
 import { EXCHANGE_RATE } from '@/lib/constants';
 
+const MS_DAY = 24 * 60 * 60 * 1000;
+
 export const ReportsScreen = () => {
   const { formatFromUSD } = useCurrency();
   const sales = useSalesStore((s) => s.sales);
@@ -35,12 +37,18 @@ export const ReportsScreen = () => {
 
   const [period, setPeriod] = useState<'7d' | '30d' | 'todo'>('todo');
 
-  // 🔹 FILTRAR VENTAS POR PERIODO (antes no se usaba)
+  // 🔹 FILTRO DE PERIODO (usando la venta más reciente como referencia estable)
   const filteredSales = useMemo(() => {
     if (period === 'todo') return sales;
-    const now = Date.now();
+    if (sales.length === 0) return [];
+
+    const sorted = [...sales].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+    const newest = new Date(sorted[0].date).getTime();
     const days = period === '7d' ? 7 : 30;
-    const cutoff = now - days * 24 * 60 * 60 * 1000;
+    const cutoff = newest - days * MS_DAY;
+
     return sales.filter((s) => new Date(s.date).getTime() >= cutoff);
   }, [sales, period]);
 
@@ -52,10 +60,14 @@ export const ReportsScreen = () => {
   const pocketInvested = investments
     .filter((inv) => {
       const anyInv = inv as { fundingSource?: string; fundedFromInvestmentId?: number | null };
-      return anyInv.fundingSource === 'pocket' || (!anyInv.fundingSource && !anyInv.fundedFromInvestmentId);
+      return (
+        anyInv.fundingSource === 'pocket' ||
+        (!anyInv.fundingSource && !anyInv.fundedFromInvestmentId)
+      );
     })
     .reduce((sum, inv) => {
-      const usd = inv.currency === 'USD' ? inv.totalInvestment : inv.totalInvestment / EXCHANGE_RATE;
+      const usd =
+        inv.currency === 'USD' ? inv.totalInvestment : inv.totalInvestment / EXCHANGE_RATE;
       return sum + usd;
     }, 0);
 
@@ -65,11 +77,11 @@ export const ReportsScreen = () => {
       return anyInv.fundingSource === 'reinvested' || !!anyInv.fundedFromInvestmentId;
     })
     .reduce((sum, inv) => {
-      const usd = inv.currency === 'USD' ? inv.totalInvestment : inv.totalInvestment / EXCHANGE_RATE;
+      const usd =
+        inv.currency === 'USD' ? inv.totalInvestment : inv.totalInvestment / EXCHANGE_RATE;
       return sum + usd;
     }, 0);
 
-  // Ganancia neta disponible = ganancia real - lo reinvertido en otros lotes
   const netCashInHand = totalProfitUSD - reinvestedCapital;
 
   // 1. Formas de pago
@@ -139,7 +151,6 @@ export const ReportsScreen = () => {
     .sort((a, b) => b.qty - a.qty)
     .slice(0, 5);
 
-  // Stock global
   const totalStock = products.reduce((sum, p) => sum + (p.stock || 0), 0);
   const totalProducts = products.length;
 
@@ -205,7 +216,7 @@ export const ReportsScreen = () => {
                 <span className="text-[10px] font-bold uppercase">De Bolsillo</span>
               </div>
               <p className="text-lg font-black text-white">{formatFromUSD(pocketInvested)}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">JSConcept y lotes propios</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Lotes propios</p>
             </div>
             <div className="bg-slate-800/80 rounded-2xl p-3 border border-slate-700">
               <div className="flex items-center gap-1.5 text-purple-400 mb-1">
@@ -213,7 +224,7 @@ export const ReportsScreen = () => {
                 <span className="text-[10px] font-bold uppercase">Reinvertido</span>
               </div>
               <p className="text-lg font-black text-white">{formatFromUSD(reinvestedCapital)}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Taladros + Paca Licras</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Con ganancias</p>
             </div>
           </div>
           <div className="flex items-center justify-between pt-2 border-t border-slate-700">
@@ -265,9 +276,9 @@ export const ReportsScreen = () => {
                   <YAxis tick={{ fontSize: 10 }} />
                   <Tooltip
                     contentStyle={{ borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}
-                    formatter={(value: any) => [`$${Number(value || 0).toFixed(2)} USD`, '']}
+                    formatter={(value) => [`$${Number(value ?? 0).toFixed(2)} USD`, '']}
                     labelFormatter={(_, payload) =>
-                      payload?.[0]?.payload?.fullName || ''
+                      (payload?.[0]?.payload as { fullName?: string } | undefined)?.fullName || ''
                     }
                   />
                   <Bar dataKey="InvertidoUSD" name="Invertido" fill="#94A3B8" radius={[4, 4, 0, 0]} />

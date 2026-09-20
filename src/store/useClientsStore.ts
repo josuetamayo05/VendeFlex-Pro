@@ -11,6 +11,7 @@ interface ClientsStore {
   updateClient: (id: number, data: Partial<Client>) => void;
   deleteClient: (id: number) => void;
   getClientById: (id: number) => Client | undefined;
+  searchClients: (query: string) => Client[];
   resetClients: () => void;
   resetToMocks: () => void;
   addDebt: (clientId: number, debt: Omit<ClientDebt, 'id'>) => void;
@@ -39,7 +40,6 @@ export const useClientsStore = create<ClientsStore>()(
           notes: data.notes || '',
           investmentId: data.investmentId,
         };
-
         set((s) => ({ clients: [newClient, ...s.clients] }));
         return newClient.id;
       },
@@ -57,10 +57,19 @@ export const useClientsStore = create<ClientsStore>()(
 
       getClientById: (id) => get().clients.find((c) => c.id === id),
 
+      searchClients: (query) => {
+        const q = query.trim().toLowerCase();
+        if (!q) return [];
+        return get().clients.filter(
+          (c) =>
+            c.name.toLowerCase().includes(q) ||
+            (c.phone && c.phone.includes(q))
+        );
+      },
+
       resetClients: () => set({ clients: [], selectedClientId: null }),
       resetToMocks: () => set({ clients: [], selectedClientId: null }),
 
-      // 🔹 GESTIÓN DE DEUDAS / FIADOS
       addDebt: (clientId, debtData) =>
         set((s) => ({
           clients: s.clients.map((c) => {
