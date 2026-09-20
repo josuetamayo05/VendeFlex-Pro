@@ -29,17 +29,17 @@ export interface ProductItem {
   investmentId: number;
   name: string;
   category: string;
-  origin: ProductOrigin;
+  origin?: string;
   price: number;
   currency: 'USD' | 'CUP';
-  stock: number;           // Stock disponible actual (Columna P)
-  image: string;
-  cost?: number;
-  weightLbs?: number;
+  stock: number;
+  initialQuantity?: number; // 👈 AÑADIDO AQUI
+  cost: number;
+  image?: string;
 }
 
 // Tabs inferiores
-export type BottomTab = 'inicio' | 'inventario' | 'clientes' | 'reportes';
+export type BottomTab = 'inicio' | 'inventario' | 'reportes' | 'clientes' | 'config' | 'inversiones';
 
 export type PaymentMethod = 'Efectivo USD' | 'Efectivo CUP' | 'MLC' | 'Zelle' | 'Fiado';
 
@@ -105,26 +105,26 @@ export type InvestmentStatus = 'planning' | 'in_transit' | 'active' | 'closed';
 
 export interface Investment {
   id: number;
-  code: string;              // P001, P002, etc
-  name: string;              // "Ropa Gym Marzo 2025"
-  type: InvestmentType;
-  status: InvestmentStatus;
+  code: string;
+  name: string;
+  supplierName?: string;
+  type: 'import_usa' | 'local' | 'encargo' | 'mixta' | string;
+  status: 'active' | 'in_transit' | 'closed' | string;
   createdAt: string;
   arrivalDate?: string;
-  supplierName: string;      // SHEIN, TEMU, Mercado Habana, etc
-
-  // Costos
-  productsCost: number;      // Costo de los productos (USD)
-  weightLbs?: number;        // Solo para import
-  shippingRatePerLb?: number;// Costo por libra (USD)
-  shippingCost: number;      // Envío total (USD)
-  taxes: number;             // Impuestos/aranceles (USD)
-  totalInvestment: number;   // Total invertido (USD)
-
-  // Metadata
+  productsCost: number;
+  weightLbs?: number;
+  shippingRatePerLb?: number;
+  shippingCost: number;
+  taxes: number;
+  totalInvestment: number;
   currency: 'USD' | 'CUP';
+  color?: string;
   notes?: string;
-  color?: string;            // Para identificar visualmente
+
+  // 🔹 CAMPOS PARA SEGUIMIENTO DE FINANCIAMIENTO:
+  fundingSource?: 'pocket' | 'reinvested';
+  fundedFromInvestmentId?: number | null;
 }
 
 // ===== VENTAS =====
