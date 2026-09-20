@@ -9,25 +9,27 @@ interface Props {
   onClick: () => void;
 }
 
-const typeIcons = {
+// En src/features/investments/components/InvestmentCard.tsx
+
+const typeIcons: Record<string, React.ElementType> = {
   import_usa: Plane,
   local: Store,
   encargo: Clock,
   mixta: Package,
 };
 
-const typeLabels = {
-  import_usa: 'Importación',
-  local: 'Local',
-  encargo: 'Encargo',
+const typeLabels: Record<string, string> = {
+  import_usa: 'Importación USA',
+  local: 'Compra Local',
+  encargo: 'Por Encargo',
   mixta: 'Mixta',
 };
 
-const statusConfig = {
-  planning: { label: 'Planificando', color: 'bg-slate-100 text-slate-600' },
-  in_transit: { label: 'En camino', color: 'bg-amber-100 text-amber-700' },
-  active: { label: 'Activa', color: 'bg-emerald-100 text-emerald-700' },
-  closed: { label: 'Cerrada', color: 'bg-slate-100 text-slate-400' },
+const statusConfig: Record<string, { label: string; color: string }> = {
+  planning: { label: 'Planificando', color: 'bg-slate-100 text-slate-700' },
+  in_transit: { label: 'En camino', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+  active: { label: 'En venta', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  closed: { label: 'Cerrada', color: 'bg-slate-100 text-slate-600' },
 };
 
 export const InvestmentCard: React.FC<Props> = ({ investment, onClick }) => {

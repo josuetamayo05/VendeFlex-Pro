@@ -1,3 +1,5 @@
+// src/types/index.ts
+
 export type View =
   | 'dashboard'
   | 'crear_producto'
@@ -9,7 +11,7 @@ export type View =
   | 'create_investment'
   | 'settings'
   | 'finance'
-  | 'reports'; // ← AÑADIDOADIDO AQUÍ
+  | 'reports';
 
 // Tipos de moneda soportados
 export type Currency = 'USD' | 'CUP' | 'MLC';
@@ -33,10 +35,14 @@ export interface ProductItem {
   price: number;
   currency: 'USD' | 'CUP';
   stock: number;
-  initialQuantity?: number; // 👈 AÑADIDO AQUI
+  initialQuantity?: number;
   cost: number;
   image?: string;
+  weightLbs?: number; // 👈 CORRIGE EL ERROR DE CreateProductScreen
 }
+
+// Alias de conveniencia
+export type Product = ProductItem;
 
 // Tabs inferiores
 export type BottomTab = 'inicio' | 'inventario' | 'reportes' | 'clientes' | 'config' | 'inversiones';
@@ -46,7 +52,7 @@ export type PaymentMethod = 'Efectivo USD' | 'Efectivo CUP' | 'MLC' | 'Zelle' | 
 export interface CartItem {
   productId: number;
   name: string;
-  image: string;
+  image?: string; // 👈 CORRIGE EL ERROR DE useCartStore (AHORA ACEPTA UNDEFINED)
   unitPrice: number;
   currency: 'USD' | 'CUP';
   quantity: number;
@@ -66,7 +72,7 @@ export type ClientStatus = 'al_dia' | 'debe' | 'moroso';
 
 export interface ClientDebt {
   id: number;
-  investmentId?: number; // ← Cambia a opcional con ?
+  investmentId?: number;
   amountUSD: number;
   amountCUP: number;
   concept: string;
@@ -76,7 +82,7 @@ export interface ClientDebt {
 
 export interface Client {
   id: number;
-  investmentId?: number; // ← NUEVO: inversión principal asociada
+  investmentId?: number;
   name: string;
   phone?: string;
   avatar?: string;
@@ -87,14 +93,14 @@ export interface Client {
   notes?: string;
 }
 
-// Helper
+// Helpers
 export const getClientDebtUSD = (client: Client): number =>
   client.debts.reduce((sum, d) => sum + d.amountUSD, 0);
 
 export const getClientStatus = (client: Client): ClientStatus => {
   const debt = getClientDebtUSD(client);
   if (debt <= 0) return 'al_dia';
-  if (debt >= 50) return 'moroso'; // umbral arbitrario
+  if (debt >= 50) return 'moroso';
   return 'debe';
 };
 
@@ -108,8 +114,8 @@ export interface Investment {
   code: string;
   name: string;
   supplierName?: string;
-  type: 'import_usa' | 'local' | 'encargo' | 'mixta' | string;
-  status: 'active' | 'in_transit' | 'closed' | string;
+  type: InvestmentType | string;
+  status: InvestmentStatus | string;
   createdAt: string;
   arrivalDate?: string;
   productsCost: number;
