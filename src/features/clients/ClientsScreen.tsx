@@ -1,137 +1,131 @@
-import React, { useState, useMemo } from 'react';
-import { Users, Plus, Wallet } from 'lucide-react';
+// src/features/clients/ClientsScreen.tsx
+import { useState } from 'react';
+import { Users, ReceiptText, Plus, Search } from 'lucide-react';
 import { useClientsStore } from '@/store/useClientsStore';
-import { useInvestmentsStore } from '@/store/useInvestmentsStore';
-import { getClientDebtUSD, getClientStatus } from '@/types';
 import { ClientCard } from './components/ClientCard';
-import { ClientFilters } from './components/ClientFilters';
 import { ClientDetail } from './components/ClientDetail';
-import { EXCHANGE_RATE } from '@/lib/constants';
+import { SalesHistory } from './components/SalesHistory';
 
-export const ClientsScreen: React.FC = () => {
+export const ClientsScreen = () => {
+  const [activeSubTab, setActiveSubTab] = useState<'clients' | 'sales'>('clients');
+  const [searchTerm, setSearchTerm] = useState('');
+  
   const clients = useClientsStore((s) => s.clients);
   const selectedClientId = useClientsStore((s) => s.selectedClientId);
   const setSelectedClient = useClientsStore((s) => s.setSelectedClient);
-  const investments = useInvestmentsStore((s) => s.investments);
+  const addClient = useClientsStore((s) => s.addClient);
 
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'todos' | 'deben' | 'al_dia'>('todos');
-  const [selectedInvestmentId, setSelectedInvestmentId] = useState<string>('todas');
+  // Obtener el objeto completo del cliente seleccionado
+  const selectedClient = clients.find((c) => c.id === selectedClientId);
 
-  const selectedClient = clients.find((c) => c.id === selectedClientId) ?? null;
+  // Si hay un cliente seleccionado, pasarle props exigidos (client y onClose)
+  if (selectedClientId !== null && selectedClient) {
+    return (
+      <ClientDetail
+        client={selectedClient}
+        onClose={() => setSelectedClient(null)}
+      />
+    );
+  }
 
-  // Filtrado inteligente por Búsqueda, Estado y por INVERSIÓN
-  const filtered = useMemo(() => {
-    return clients
-      .filter((c) => {
-        const matchSearch = c.name.toLowerCase().includes(search.toLowerCase());
-        const status = getClientStatus(c);
-        const matchFilter =
-          filter === 'todos' ||
-          (filter === 'deben' && status !== 'al_dia') ||
-          (filter === 'al_dia' && status === 'al_dia');
+  const filteredClients = clients.filter(
+    (c) =>
+      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.phone && c.phone.includes(searchTerm))
+  );
 
-        // Filtro por inversión
-        const matchInvestment =
-          selectedInvestmentId === 'todas' ||
-          c.investmentId?.toString() === selectedInvestmentId ||
-          c.debts.some((d) => d.investmentId?.toString() === selectedInvestmentId);
-
-        return matchSearch && matchFilter && matchInvestment;
-      })
-      .sort((a, b) => getClientDebtUSD(b) - getClientDebtUSD(a));
-  }, [clients, search, filter, selectedInvestmentId]);
-
-  // Totales
-  const totalDebtUSD = filtered.reduce((sum, c) => sum + getClientDebtUSD(c), 0);
-  const clientsWithDebt = filtered.filter((c) => getClientDebtUSD(c) > 0).length;
+  const handleCreateNewClient = () => {
+    const name = prompt('Nombre del nuevo cliente:');
+    if (!name) return;
+    const phone = prompt('Teléfono (opcional):') || '';
+    const newId = addClient({ name, phone, tags: ['Nuevo'] });
+    setSelectedClient(newId);
+  };
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto">
-      {/* HEADER */}
-      <div className="p-5 bg-white border-b border-slate-100 space-y-3 sticky top-0 z-10">
-        <div className="flex justify-between items-center">
+    <div className="flex-1 flex flex-col bg-slate-50 min-h-screen pb-20">
+      {/* HEADER PRINCIPAL */}
+      <div className="p-4 bg-white border-b border-slate-200 sticky top-0 z-10 space-y-3">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-              Clientes & Fiados
-            </h1>
-            <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-              {clientsWithDebt > 0
-                ? `${clientsWithDebt} con deuda · $${totalDebtUSD.toFixed(2)} USD (≈ $${(
-                    totalDebtUSD * EXCHANGE_RATE
-                  ).toLocaleString('es-CU')} CUP)`
-                : `${filtered.length} clientes · Sin deudas pendientes`}
-            </p>
+            <h1 className="text-xl font-black text-slate-900">Clientes & Ventas</h1>
+            <p className="text-xs text-slate-400">Gestión de clientes y control de ventas</p>
           </div>
+          {activeSubTab === 'clients' && (
+            <button
+              onClick={handleCreateNewClient}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+            >
+              <Plus className="w-4 h-4" /> Nuevo
+            </button>
+          )}
+        </div>
+
+        {/* PESTAÑAS (SUB-TABS) */}
+        <div className="flex bg-slate-100 p-1 rounded-xl gap-1 text-xs font-bold">
           <button
-            onClick={() => {
-              const name = prompt('Nombre del cliente:');
-              if (!name) return;
-              const phone = prompt('Teléfono (opcional):') || undefined;
-              const invId = selectedInvestmentId !== 'todas' ? Number(selectedInvestmentId) : investments[0]?.id;
-              useClientsStore.getState().addClient({
-                name,
-                phone,
-                investmentId: invId,
-                tags: ['Nuevo'],
-              });
-            }}
-            className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-xl text-xs font-bold flex items-center gap-1 shadow-md shadow-blue-500/20 active:scale-95 transition-all"
+            onClick={() => setActiveSubTab('clients')}
+            className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-2 transition-all ${
+              activeSubTab === 'clients'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
           >
-            <Plus className="w-4 h-4" /> Nuevo
+            <Users className="w-4 h-4" /> Clientes ({clients.length})
+          </button>
+          <button
+            onClick={() => setActiveSubTab('sales')}
+            className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-2 transition-all ${
+              activeSubTab === 'sales'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <ReceiptText className="w-4 h-4" /> Control de Ventas
           </button>
         </div>
 
-        {/* FILTRO POR INVERSIÓN */}
-        <div className="flex items-center gap-2">
-          <Wallet className="w-4 h-4 text-slate-400" />
-          <select
-            value={selectedInvestmentId}
-            onChange={(e) => setSelectedInvestmentId(e.target.value)}
-            className="w-full bg-slate-100 text-slate-800 font-extrabold text-xs px-3 py-2 rounded-xl border-none focus:outline-none"
-          >
-            <option value="todas">📦 Inversión: Todas las inversiones</option>
-            {investments.map((inv) => (
-              <option key={inv.id} value={inv.id.toString()}>
-                {inv.code} · {inv.name} ({inv.supplierName})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <ClientFilters
-          search={search}
-          setSearch={setSearch}
-          filter={filter}
-          setFilter={setFilter}
-        />
-      </div>
-
-      {/* LISTA DE CLIENTES */}
-      <div className="p-4 space-y-2.5">
-        {filtered.map((client) => (
-          <ClientCard
-            key={client.id}
-            client={client}
-            onClick={() => setSelectedClient(client.id)}
-          />
-        ))}
-
-        {filtered.length === 0 && (
-          <div className="text-center py-16 text-slate-400 space-y-2">
-            <Users className="w-10 h-10 mx-auto text-slate-300" />
-            <p className="text-xs font-bold">No se encontraron clientes para esta inversión</p>
+        {/* BUSCADOR DE CLIENTES (SÓLO EN PESTAÑA CLIENTES) */}
+        {activeSubTab === 'clients' && (
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar cliente por nombre o teléfono..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs font-medium focus:outline-none focus:border-blue-500 transition-colors"
+            />
           </div>
         )}
       </div>
 
-      {/* MODAL DETALLE */}
-      {selectedClient && (
-        <ClientDetail
-          client={selectedClient}
-          onClose={() => setSelectedClient(null)}
-        />
-      )}
+      {/* CONTENIDO DE LAS PESTAÑAS */}
+      <div className="p-4">
+        {activeSubTab === 'clients' ? (
+          <div>
+            {filteredClients.length === 0 ? (
+              <div className="bg-white rounded-2xl p-8 text-center border border-slate-200/80 mt-2">
+                <Users className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                <p className="text-xs font-bold text-slate-400">No se encontraron clientes</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {filteredClients.map((client) => (
+                  <ClientCard
+                    key={client.id}
+                    client={client}
+                    onClick={() => setSelectedClient(client.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* TABLA DE CONTROL DE VENTAS (EXCEL) */
+          <SalesHistory />
+        )}
+      </div>
     </div>
   );
 };
