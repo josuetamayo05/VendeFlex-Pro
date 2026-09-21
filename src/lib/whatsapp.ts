@@ -26,7 +26,7 @@ export const buildThankYouMessage = (sale: Sale): string => {
 
 Gracias por tu compra en *${BRAND_NAME}* 💖
 
-🧾 *Resumen de tu pedido:*
+🧾 *Su pedido:*
 ${items}
 
 💵 *Total:* $${sale.totalUSD.toFixed(2)} USD
