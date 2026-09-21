@@ -16,21 +16,12 @@ export const cleanPhone = (phone?: string): string => {
 };
 
 export const buildThankYouMessage = (sale: Sale): string => {
-  const items = sale.items
-    .map((i) => `• ${i.quantity}x ${i.productName} — $${i.totalUSD.toFixed(2)}`)
-    .join('\n');
 
   const clientName = sale.clientName || 'Estimad@ cliente';
 
   return `¡Hola ${clientName}! 🌸
 
 Gracias por tu compra en *${BRAND_NAME}* 💖
-
-🧾 *Su pedido:*
-${items}
-
-💵 *Total:* $${sale.totalUSD.toFixed(2)} USD
-💳 Pago: ${sale.paymentMethod}
 
 Cualquier duda o si te interesa algo más, ¡escríbeme! 😊
 Gracias por confiar en nosotros 🙌`;
