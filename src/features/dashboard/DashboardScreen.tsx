@@ -1,141 +1,208 @@
+// src/features/dashboard/DashboardScreen.tsx
 import React from 'react';
-import { TrendingUp, DollarSign, Package, Wallet, Landmark, TrendingDown, Repeat } from 'lucide-react';
+import {
+  TrendingUp,
+  DollarSign,
+  Package,
+  Wallet,
+  Landmark,
+  TrendingDown,
+  Repeat,
+  ArrowUpRight,
+  Eye,
+} from 'lucide-react';
 import { CurrencySelector } from '@/components/ui/CurrencySelector';
-import { KPICard } from './components/KPICard';
 import { QuickActions } from './components/QuickActions';
 import { useCurrency } from '@/hooks/useCurrency';
-import { useInvestmentsStore } from '@/store/useInvestmentsStore';
-import { useSalesStore } from '@/store/useSalesStore';
-import { useProductsStore } from '@/store/useProductsStore';
-import { useClientsStore } from '@/store/useClientsStore';
-import { useFinanceStore } from '@/store/useFinanceStore';
-import { getClientDebtUSD } from '@/types';
-import { EXCHANGE_RATE } from '@/lib/constants';
+import { useGlobalMetrics } from '@/hooks/useGlobalMetrics';
 import { useConfigStore } from '@/store/useConfigStore';
-
-const toUSD = (price: number, currency: 'USD' | 'CUP') =>
-  currency === 'CUP' ? price / EXCHANGE_RATE : price;
 
 export const DashboardScreen: React.FC = () => {
   const { formatFromUSD } = useCurrency();
+  const m = useGlobalMetrics();
 
   const config = useConfigStore((s) => s.config);
-
   const ownerName = config.ownerName ? `Hola, ${config.ownerName}` : '¡Hola!';
-
-  const investments = useInvestmentsStore((s) => s.investments);
-  const getTotalInvestedUSD = useInvestmentsStore((s) => s.getTotalInvestedUSD);
-  const activeInvestmentsCount = useInvestmentsStore((s) => s.getActiveInvestmentsCount());
-
-  const totalRevenue = useSalesStore((s) => s.getTotalRevenueUSD());
-  const totalProfit = useSalesStore((s) => s.getTotalProfitUSD());
-  const products = useProductsStore((s) => s.products);
-  const clients = useClientsStore((s) => s.clients);
-
-  const totalExpenses = useFinanceStore((s) => s.getTotalExpensesUSD());
-  const totalReinvested = useFinanceStore((s) => s.getTotalReinvestedUSD());
-
-  // Inversión Bruta (Suma simple)
-  const grossInvestmentUSD = getTotalInvestedUSD();
-
-  // Inversión Neta de Bolsillo = Inversión Bruta - Capital Reinvertido de Ganancias
-  const netPocketInvestmentUSD = Math.max(0, grossInvestmentUSD - totalReinvested);
-
-  // Ganancia Líquida Disponible (En Mano) = Ganancia Cobrada - Gastos Operativos - Reinvertido
-  const liquidProfitInHand = Math.max(0, totalProfit - totalExpenses - totalReinvested);
-
-  // Dinero Atrapado en Stock (Precio de venta x stock actual)
-  const stockValueUSD = products.reduce(
-    (sum, p) => sum + toUSD(p.price, p.currency) * p.stock,
-    0
-  );
-  const totalStockCount = products.reduce((sum, p) => sum + p.stock, 0);
-
-  // Deudas Fiadas Reales
-  const totalDebt = clients.reduce((sum, c) => sum + getClientDebtUSD(c), 0);
-  const debtorsCount = clients.filter((c) => getClientDebtUSD(c) > 0).length;
-
-  // ROI Real de Bolsillo
-  const roiPercent = netPocketInvestmentUSD > 0 ? (totalProfit / netPocketInvestmentUSD) * 100 : 0;
+  const businessName = config.businessName || 'Mi Negocio';
 
   return (
     <>
-      {/* HEADER */}
+      {/* ═══ HEADER ═══ */}
       <div className="p-5 bg-white border-b border-slate-100 space-y-4">
         <CurrencySelector />
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900">{ownerName} 👋</h1>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900">
+            {ownerName} 👋
+          </h1>
           <p className="text-xs text-slate-400 font-medium">
-            Resumen global de tus {activeInvestmentsCount} inversión(es) activa(s)
+            {businessName} · {m.activeInvestmentsCount} inversión(es) activa(s)
           </p>
         </div>
       </div>
 
-      <div className="p-5 space-y-3">
-        {/* GANANCIA LÍQUIDA LIBRE */}
-        <KPICard
-          label="Ganancia Líquida Libre (En Mano)"
-          value={formatFromUSD(liquidProfitInHand)}
-          badgeText={`ROI ${roiPercent.toFixed(0)}%`}
-          badgeColor="emerald"
-          badgeIcon={<TrendingUp className="w-3.5 h-3.5" />}
-          progress={Math.min(100, roiPercent)}
-        />
-
-        {/* INVERSIÓN REAL DE BOLSILLO */}
-        <KPICard
-          label="Inversión Real de Bolsillo"
-          value={formatFromUSD(netPocketInvestmentUSD)}
-          badgeText={`${investments.length} proyectos`}
-          badgeColor="blue"
-          badgeIcon={<Wallet className="w-3.5 h-3.5" />}
-        />
-
-        {/* DINERO EN STOCK */}
-        <KPICard
-          label="Dinero Atrapado en Stock"
-          value={formatFromUSD(stockValueUSD)}
-          badgeText={`${totalStockCount} items`}
-          badgeColor="amber"
-          badgeIcon={<Package className="w-3.5 h-3.5" />}
-        />
-
-        {/* INGRESO TOTAL Y DEUDAS */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="bg-white p-3.5 rounded-3xl border border-slate-100 shadow-sm">
-            <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-              <DollarSign className="w-3 h-3 text-blue-500" /> Ingreso Cobrado
-            </p>
-            <p className="text-base font-black text-slate-900 mt-1">{formatFromUSD(totalRevenue)}</p>
+      <div className="p-5 space-y-3 pb-28">
+        {/* ═══ SALDO TOTAL (héroe) ═══ */}
+        <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+                <Eye className="w-3.5 h-3.5" /> Saldo total (Patrimonio)
+              </p>
+              <h2 className="text-3xl font-black text-slate-900 mt-1 tracking-tight">
+                {formatFromUSD(m.saldoTotalUSD)}
+              </h2>
+            </div>
+            <span
+              className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border ${
+                m.roiPercent >= 0
+                  ? 'text-emerald-600 bg-emerald-50 border-emerald-100'
+                  : 'text-rose-600 bg-rose-50 border-rose-100'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              ROI {m.roiPercent.toFixed(0)}%
+            </span>
           </div>
 
-          <div className="bg-white p-3.5 rounded-3xl border border-slate-100 shadow-sm">
-            <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-              <Landmark className="w-3 h-3 text-rose-500" /> Por Cobrar (Fiados)
+          {/* Barra de recuperación de capital */}
+          <div className="space-y-1">
+            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-700"
+                style={{ width: `${m.recoveryPercent}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-slate-400 font-medium">
+              Capital recuperado: {m.recoveryPercent.toFixed(0)}%
             </p>
-            <p className="text-base font-black text-rose-600 mt-1">{formatFromUSD(totalDebt)}</p>
-            <p className="text-[9px] font-bold text-slate-400 mt-0.5">{debtorsCount} clientes</p>
           </div>
         </div>
 
-        {/* DESGLOSE BÓVEDA (GASTOS Y REINVERSIÓN) */}
-        {(totalExpenses > 0 || totalReinvested > 0) && (
-          <div className="bg-slate-900 text-white p-4 rounded-3xl shadow-md space-y-2">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
-              Desglose Bóveda & Control
+        {/* ═══ GRID 2×2 PRINCIPAL ═══ */}
+        <div className="grid grid-cols-2 gap-2.5">
+          {/* Ganancia de hoy */}
+          <div className="bg-white p-3.5 rounded-3xl border border-slate-100 shadow-sm space-y-1">
+            <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+              <ArrowUpRight className="w-3 h-3 text-emerald-500" />
+              Ganancia de hoy
             </p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="flex items-center gap-1.5 text-rose-400">
-                <TrendingDown className="w-3.5 h-3.5" />
-                <span>Gastos: {formatFromUSD(totalExpenses)}</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-indigo-400">
-                <Repeat className="w-3.5 h-3.5" />
-                <span>Reinvertido: {formatFromUSD(totalReinvested)}</span>
-              </div>
+            <p className="text-lg font-black text-slate-900">
+              {formatFromUSD(m.gananciaHoy)}
+            </p>
+            {m.ingresosHoy > 0 && (
+              <p className="text-[9px] font-bold text-emerald-600">
+                +{formatFromUSD(m.ingresosHoy)} vendido
+              </p>
+            )}
+          </div>
+
+          {/* Inversión en curso */}
+          <div className="bg-white p-3.5 rounded-3xl border border-slate-100 shadow-sm space-y-1">
+            <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+              <Wallet className="w-3 h-3 text-blue-500" />
+              Inversión de bolsillo
+            </p>
+            <p className="text-lg font-black text-slate-900">
+              {formatFromUSD(m.netPocketInvestmentUSD)}
+            </p>
+            <p className="text-[9px] font-bold text-blue-600">
+              {m.projectsCount} proyecto{m.projectsCount !== 1 ? 's' : ''}
+            </p>
+          </div>
+
+          {/* Ingresos cobrados */}
+          <div className="bg-white p-3.5 rounded-3xl border border-slate-100 shadow-sm space-y-1">
+            <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+              <DollarSign className="w-3 h-3 text-blue-500" />
+              Ingreso cobrado
+            </p>
+            <p className="text-lg font-black text-slate-900">
+              {formatFromUSD(m.totalRevenueCollected)}
+            </p>
+            <p className="text-[9px] font-bold text-slate-400">
+              Ganancia: {formatFromUSD(m.totalProfitCollected)}
+            </p>
+          </div>
+
+          {/* Por cobrar */}
+          <div className="bg-white p-3.5 rounded-3xl border border-slate-100 shadow-sm space-y-1">
+            <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+              <Landmark className="w-3 h-3 text-rose-500" />
+              Por cobrar
+            </p>
+            <p className="text-lg font-black text-rose-600">
+              {formatFromUSD(m.porCobrarUSD)}
+            </p>
+            <p className="text-[9px] font-bold text-slate-400">
+              {m.debtorsCount} cliente{m.debtorsCount !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </div>
+
+        {/* ═══ GANANCIA LÍQUIDA + STOCK ═══ */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="bg-emerald-50 border border-emerald-100 p-3.5 rounded-3xl space-y-1">
+            <p className="text-[10px] font-bold text-emerald-700/70">
+              Ganancia líquida libre
+            </p>
+            <p className="text-lg font-black text-emerald-700">
+              {formatFromUSD(m.liquidProfitUSD)}
+            </p>
+            <p className="text-[9px] font-bold text-emerald-600/80">En mano 💵</p>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-100 p-3.5 rounded-3xl space-y-1">
+            <p className="text-[10px] font-bold text-amber-700/70 flex items-center gap-1">
+              <Package className="w-3 h-3" /> Stock a costo
+            </p>
+            <p className="text-lg font-black text-amber-700">
+              {formatFromUSD(m.stockAtCostUSD)}
+            </p>
+            <p className="text-[9px] font-bold text-amber-600/80">
+              {m.totalStockUnits} items · vale {formatFromUSD(m.stockAtPriceUSD)}
+            </p>
+          </div>
+        </div>
+
+        {/* ═══ DESGLOSE BÓVEDA (bloque oscuro estilo Gemini) ═══ */}
+        <div className="bg-slate-900 text-white p-4 rounded-3xl shadow-md space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Desglose bóveda & control
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-0.5">
+              <p className="text-[10px] text-slate-400 flex items-center gap-1">
+                <TrendingDown className="w-3 h-3 text-rose-400" /> Gastos
+              </p>
+              <p className="text-sm font-black text-rose-400">
+                {formatFromUSD(m.totalExpenses)}
+              </p>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-[10px] text-slate-400 flex items-center gap-1">
+                <Repeat className="w-3 h-3 text-indigo-400" /> Reinvertido
+              </p>
+              <p className="text-sm font-black text-indigo-400">
+                {formatFromUSD(m.totalReinvested)}
+              </p>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-[10px] text-slate-400">Inversión bruta</p>
+              <p className="text-sm font-black text-slate-200">
+                {formatFromUSD(m.grossInvestmentUSD)}
+              </p>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-[10px] text-slate-400">Capital recuperado</p>
+              <p className="text-sm font-black text-emerald-400">
+                {m.recoveryPercent.toFixed(0)}%
+              </p>
             </div>
           </div>
-        )}
+        </div>
 
         <QuickActions />
       </div>

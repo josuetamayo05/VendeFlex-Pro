@@ -2,9 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Investment } from '@/types';
 
-const mockInvestments: Investment[] = [
-  
-]
+const mockInvestments: Investment[] = []
 
 interface InvestmentsStore {
   investments: Investment[];

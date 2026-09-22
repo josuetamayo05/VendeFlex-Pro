@@ -213,6 +213,26 @@ export const SettingsScreen: React.FC = () => {
           </div>
         </div>
 
+        {/* BOTÓN DE INSTALACIÓN */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <h4 className="font-bold text-white text-sm mb-1">Acceso directo</h4>
+          <p className="text-xs text-slate-400 mb-3">
+            Instala la aplicación en tu pantalla de inicio para usarla sin conexión.
+          </p>
+          <button
+            onClick={() => setShowInstallModal(true)}
+            className="w-full bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/30 text-blue-400 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs transition-colors"
+          >
+            <Download className="w-4 h-4" /> Cómo instalar en tu teléfono
+          </button>
+        </div>
+
+        {/* MODAL */}
+        <InstallModal 
+          isOpen={showInstallModal} 
+          onClose={() => setShowInstallModal(false)} 
+        />
+
         {/* BACKUP */}
         <div className="bg-white rounded-2xl p-4 border border-slate-100 space-y-3">
           <div>
@@ -328,26 +348,6 @@ export const SettingsScreen: React.FC = () => {
             Borrar TODOS los datos
           </button>
         </div>
-
-        {/* BOTÓN DE INSTALACIÓN */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-          <h4 className="font-bold text-white text-sm mb-1">Acceso directo</h4>
-          <p className="text-xs text-slate-400 mb-3">
-            Instala la aplicación en tu pantalla de inicio para usarla sin conexión.
-          </p>
-          <button
-            onClick={() => setShowInstallModal(true)}
-            className="w-full bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/30 text-blue-400 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs transition-colors"
-          >
-            <Download className="w-4 h-4" /> Cómo instalar en tu teléfono
-          </button>
-        </div>
-
-        {/* MODAL */}
-        <InstallModal 
-          isOpen={showInstallModal} 
-          onClose={() => setShowInstallModal(false)} 
-        />
 
         {/* INFO */}
         <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3 flex items-start gap-2">
