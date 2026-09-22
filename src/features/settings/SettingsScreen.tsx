@@ -19,11 +19,14 @@ import { pushToSupabase, pullFromSupabase } from '@/lib/supabaseSync';
 import { Cloud, CloudUpload, CloudDownload } from 'lucide-react';
 import { useConfigStore } from '@/store/useConfigStore';
 import { Store, Save } from 'lucide-react';
+import { InstallModal } from '@/components/pwa/InstallModal';
 
 export const SettingsScreen: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   
+  const [showInstallModal, setShowInstallModal] = useState(false);
+
   const config = useConfigStore((s) => s.config);
   const updateConfig = useConfigStore((s) => s.updateConfig);
 
@@ -326,6 +329,26 @@ export const SettingsScreen: React.FC = () => {
           </button>
         </div>
 
+        {/* BOTÓN DE INSTALACIÓN */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <h4 className="font-bold text-white text-sm mb-1">Acceso directo</h4>
+          <p className="text-xs text-slate-400 mb-3">
+            Instala la aplicación en tu pantalla de inicio para usarla sin conexión.
+          </p>
+          <button
+            onClick={() => setShowInstallModal(true)}
+            className="w-full bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/30 text-blue-400 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs transition-colors"
+          >
+            <Download className="w-4 h-4" /> Cómo instalar en tu teléfono
+          </button>
+        </div>
+
+        {/* MODAL */}
+        <InstallModal 
+          isOpen={showInstallModal} 
+          onClose={() => setShowInstallModal(false)} 
+        />
+
         {/* INFO */}
         <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3 flex items-start gap-2">
           <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
@@ -339,6 +362,7 @@ export const SettingsScreen: React.FC = () => {
             </p>
           </div>
         </div>
+        
       </div>
     </div>
   );
