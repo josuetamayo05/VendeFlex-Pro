@@ -11,12 +11,17 @@ import { useClientsStore } from '@/store/useClientsStore';
 import { useFinanceStore } from '@/store/useFinanceStore';
 import { getClientDebtUSD } from '@/types';
 import { EXCHANGE_RATE } from '@/lib/constants';
+import { useConfigStore } from '@/store/useConfigStore';
 
 const toUSD = (price: number, currency: 'USD' | 'CUP') =>
   currency === 'CUP' ? price / EXCHANGE_RATE : price;
 
 export const DashboardScreen: React.FC = () => {
   const { formatFromUSD } = useCurrency();
+
+  const config = useConfigStore((s) => s.config);
+
+  const ownerName = config.ownerName ? `Hola, ${config.ownerName}` : '¡Hola!';
 
   const investments = useInvestmentsStore((s) => s.investments);
   const getTotalInvestedUSD = useInvestmentsStore((s) => s.getTotalInvestedUSD);
@@ -59,7 +64,7 @@ export const DashboardScreen: React.FC = () => {
       <div className="p-5 bg-white border-b border-slate-100 space-y-4">
         <CurrencySelector />
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900">Hola, Josué 👋</h1>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900">{ownerName} 👋</h1>
           <p className="text-xs text-slate-400 font-medium">
             Resumen global de tus {activeInvestmentsCount} inversión(es) activa(s)
           </p>

@@ -26,7 +26,7 @@ export const useAppStore = create<AppState>()(
       currentView: 'dashboard',
       currency: 'USD',
       activeTab: 'inicio',
-      exchangeRate: 320,
+      exchangeRate: 700,
       mlcRate: 1.1,
 
       setView: (view) => set({ currentView: view }),

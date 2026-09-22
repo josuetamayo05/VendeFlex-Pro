@@ -10,25 +10,35 @@ import { InvestmentsScreen } from '@/features/investments/InvestmentsScreen';
 import { InvestmentDetailScreen } from '@/features/investments/InvestmentDetailScreen';
 import { CreateInvestmentScreen } from '@/features/investments/CreateInvestmentScreen';
 import { SettingsScreen } from '@/features/settings/SettingsScreen';
-import { FinanceScreen } from '@/features/finance/FinanceScreen'; // ← IMPORTADO
-import { useAppStore } from '@/store/useAppStore';
-import { useEffect } from 'react';
-import { pullFromSupabase, subscribeToRealtime } from '@/lib/supabaseSync';
+import { FinanceScreen } from '@/features/finance/FinanceScreen';
 import { ReportsScreen } from '@/features/reports/ReportsScreen';
+import { OnboardingScreen } from '@/features/onboarding/OnboardingScreen'; // 1. IMPORTAR ONBOARDING
+
+import { useAppStore } from '@/store/useAppStore';
+import { useConfigStore } from '@/store/useConfigStore'; // 2. IMPORTAR STORE DE CONFIG
+import { useEffect } from 'react';
+//import { pullFromSupabase, subscribeToRealtime } from '@/lib/supabaseSync';
 
 export default function App() {
   const currentView = useAppStore((s) => s.currentView);
+  const onboardingCompleted = useConfigStore((s) => s.config.onboardingCompleted);
 
   useEffect(() => {
-    // Al abrir la app, descarga lo último de Supabase
+    // ⚠️ IMPORTANTE: Solo sincronizar con Supabase si tienes autenticación configurada
+    // Si tu app es local por dispositivo, comenta estas líneas para que no descargue datos compartidos.
+    /*
     pullFromSupabase();
-
-    // Escucha cambios en tiempo real
     const unsubscribe = subscribeToRealtime();
     return () => {
       unsubscribe();
     };
+    */
   }, []);
+
+  // 3. SI EL USUARIO NO HA HECHO EL ONBOARDING, MOSTRAR LA BIENVENIDA
+  if (!onboardingCompleted) {
+    return <OnboardingScreen />;
+  }
 
   const renderView = () => {
     switch (currentView) {
@@ -42,7 +52,7 @@ export default function App() {
       case 'create_investment': return <CreateInvestmentScreen />;
       case 'reports': return <ReportsScreen />;
       case 'settings': return <SettingsScreen />;
-      case 'finance': return <FinanceScreen />; // ← RENDERIZADO
+      case 'finance': return <FinanceScreen />;
       default: return <DashboardScreen />;
     }
   };

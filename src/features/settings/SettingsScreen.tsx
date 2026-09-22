@@ -17,11 +17,20 @@ import { importFromGymShopExcel } from '@/lib/excelImporter';
 import { FileSpreadsheet } from 'lucide-react';
 import { pushToSupabase, pullFromSupabase } from '@/lib/supabaseSync';
 import { Cloud, CloudUpload, CloudDownload } from 'lucide-react';
+import { useConfigStore } from '@/store/useConfigStore';
+import { Store, Save } from 'lucide-react';
 
 export const SettingsScreen: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
+  const config = useConfigStore((s) => s.config);
+  const updateConfig = useConfigStore((s) => s.updateConfig);
 
+  const [name, setName] = useState(config.businessName);
+  const [owner, setOwner] = useState(config.ownerName);
+  const [brand, setBrand] = useState(config.whatsappBrand);
+  
   const investmentsCount = useInvestmentsStore((s) => s.investments.length);
   const productsCount = useProductsStore((s) => s.products.length);
   const salesCount = useSalesStore((s) => s.sales.length);
@@ -115,7 +124,17 @@ export const SettingsScreen: React.FC = () => {
     if (excelInputRef.current) excelInputRef.current.value = '';
     };
 
+  const saveBusinessInfo = () => {
+    updateConfig({
+      businessName: name,
+      ownerName: owner,
+      whatsappBrand: brand || name,
+    });
+    alert('✅ Datos del negocio actualizados');
+  };
+
   return (
+    
     <div className="flex-1 flex flex-col bg-slate-50">
       {/* HEADER */}
       <div className="p-5 bg-white border-b border-slate-100 sticky top-0 z-10">
@@ -123,6 +142,43 @@ export const SettingsScreen: React.FC = () => {
         <p className="text-[11px] text-slate-400 font-medium mt-0.5">
           Backup, restauración y datos
         </p>
+      </div>
+
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 space-y-3">
+        <h3 className="font-black text-slate-800 flex items-center gap-2">
+          <Store className="w-5 h-5 text-blue-600" /> Mi Negocio
+        </h3>
+        <div>
+          <label className="text-[10px] font-bold text-slate-400 uppercase">Nombre del negocio</label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-medium"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] font-bold text-slate-400 uppercase">Tu nombre</label>
+          <input
+            value={owner}
+            onChange={(e) => setOwner(e.target.value)}
+            className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-medium"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] font-bold text-slate-400 uppercase">Marca en WhatsApp</label>
+          <input
+            value={brand}
+            onChange={(e) => setBrand(e.target.value)}
+            placeholder="Nombre que verán tus clientes"
+            className="w-full mt-1 px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-medium"
+          />
+        </div>
+        <button
+          onClick={saveBusinessInfo}
+          className="w-full bg-blue-600 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-2"
+        >
+          <Save className="w-4 h-4" /> Guardar cambios
+        </button>
       </div>
 
       <div className="p-5 space-y-4">

@@ -17,6 +17,7 @@ import { useSalesStore } from '@/store/useSalesStore';
 import { useCurrency } from '@/hooks/useCurrency';
 import { sendWhatsAppThankYou } from '@/lib/whatsapp';
 import { getClientDebtUSD, getClientStatus } from '@/types';
+import { useConfigStore } from '@/store/useConfigStore';
 
 interface Props {
   client: Client;
@@ -29,6 +30,9 @@ export const ClientDetail: React.FC<Props> = ({ client, onClose }) => {
   const collectDebt = useClientsStore((s) => s.collectDebt);
   const collectAllDebts = useClientsStore((s) => s.collectAllDebts);
 
+  const config = useConfigStore((s) => s.config);
+  const businessName = config.businessName || 'Mi Negocio';
+  
   const sales = useSalesStore((s) => s.sales);
   const { formatFromUSD } = useCurrency();
 
@@ -120,7 +124,7 @@ export const ClientDetail: React.FC<Props> = ({ client, onClose }) => {
           </button>
           <div>
             <h1 className="text-base font-black text-slate-900">Ficha de Cliente</h1>
-            <p className="text-[10px] text-slate-400 font-medium">JS Concept</p>
+            <p className="text-[10px] text-slate-400 font-medium">{businessName}</p>
           </div>
         </div>
 
