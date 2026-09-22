@@ -9,6 +9,7 @@ import {
   Repeat,
   ShieldCheck,
   Package,
+  Landmark,
 } from 'lucide-react';
 import {
   BarChart,
@@ -25,6 +26,7 @@ import { useSalesStore } from '@/store/useSalesStore';
 import { useProductsStore } from '@/store/useProductsStore';
 import { useInvestmentsStore } from '@/store/useInvestmentsStore';
 import { useCurrency } from '@/hooks/useCurrency';
+import { useGlobalMetrics } from '@/hooks/useGlobalMetrics';
 import { EXCHANGE_RATE } from '@/lib/constants';
 
 const MS_DAY = 24 * 60 * 60 * 1000;
@@ -34,10 +36,12 @@ export const ReportsScreen = () => {
   const sales = useSalesStore((s) => s.sales);
   const products = useProductsStore((s) => s.products);
   const investments = useInvestmentsStore((s) => s.investments);
-
+  const m = useGlobalMetrics();
+  
+  
   const [period, setPeriod] = useState<'7d' | '30d' | 'todo'>('todo');
 
-  // 🔹 FILTRO DE PERIODO (usando la venta más reciente como referencia estable)
+  // 🔹 FILTRO DE PERIODO
   const filteredSales = useMemo(() => {
     if (period === 'todo') return sales;
     if (sales.length === 0) return [];
@@ -53,24 +57,6 @@ export const ReportsScreen = () => {
   }, [sales, period]);
 
   // 🔹 MÉTRICAS GLOBALES
-  const totalRevenueUSD = filteredSales.reduce((sum, s) => sum + s.totalUSD, 0);
-  const totalProfitUSD = filteredSales.reduce((sum, s) => sum + s.totalProfitUSD, 0);
-
-  // Inversión de bolsillo vs reinvertida
-  const pocketInvested = investments
-    .filter((inv) => {
-      const anyInv = inv as { fundingSource?: string; fundedFromInvestmentId?: number | null };
-      return (
-        anyInv.fundingSource === 'pocket' ||
-        (!anyInv.fundingSource && !anyInv.fundedFromInvestmentId)
-      );
-    })
-    .reduce((sum, inv) => {
-      const usd =
-        inv.currency === 'USD' ? inv.totalInvestment : inv.totalInvestment / EXCHANGE_RATE;
-      return sum + usd;
-    }, 0);
-
   const reinvestedCapital = investments
     .filter((inv) => {
       const anyInv = inv as { fundingSource?: string; fundedFromInvestmentId?: number | null };
@@ -81,8 +67,13 @@ export const ReportsScreen = () => {
         inv.currency === 'USD' ? inv.totalInvestment : inv.totalInvestment / EXCHANGE_RATE;
       return sum + usd;
     }, 0);
-
+  const totalProfitUSD = filteredSales.reduce((sum, s) => sum + s.totalProfitUSD, 0);
   const netCashInHand = totalProfitUSD - reinvestedCapital;
+
+
+  // 🔹 MÉTRICAS DEL PERIODO (solo para header y gráficos)
+  const periodRevenueUSD = filteredSales.reduce((sum, s) => sum + s.totalUSD, 0);
+  const periodProfitUSD = filteredSales.reduce((sum, s) => sum + s.totalProfitUSD, 0);
 
   // 1. Formas de pago
   const paymentDataMap: Record<string, number> = {};
@@ -183,61 +174,102 @@ export const ReportsScreen = () => {
           </div>
         </div>
 
-        {/* MÉTRICAS CLAVE */}
+        {/* MÉTRICAS DEL PERIODO */}
         <div className="grid grid-cols-2 gap-2 pt-1">
           <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3">
             <div className="flex items-center gap-1.5 text-emerald-600 mb-1">
               <TrendingUp className="w-4 h-4" />
               <span className="text-[10px] font-black uppercase">Ganancia Bruta</span>
             </div>
-            <p className="text-xl font-black text-emerald-700">{formatFromUSD(totalProfitUSD)}</p>
+            <p className="text-xl font-black text-emerald-700">
+              {formatFromUSD(periodProfitUSD)}
+            </p>
           </div>
 
           <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3">
             <div className="flex items-center gap-1.5 text-blue-600 mb-1">
               <DollarSign className="w-4 h-4" />
-              <span className="text-[10px] font-black uppercase">Ingresos Totales</span>
+              <span className="text-[10px] font-black uppercase">Ingresos del Periodo</span>
             </div>
-            <p className="text-xl font-black text-blue-700">{formatFromUSD(totalRevenueUSD)}</p>
+            <p className="text-xl font-black text-blue-700">
+              {formatFromUSD(periodRevenueUSD)}
+            </p>
           </div>
         </div>
       </div>
 
       <div className="p-4 space-y-4">
-        {/* BOLSILLO VS REINVERSIÓN */}
+        {/* CAPITAL & DISPONIBILIDAD (métricas globales) */}
         <div className="bg-slate-900 text-white p-4 rounded-3xl space-y-3">
           <h2 className="text-xs font-black uppercase tracking-wide text-slate-400 flex items-center gap-1.5">
-            <Wallet className="w-4 h-4 text-blue-400" /> Capital del Negocio
+            <Wallet className="w-4 h-4 text-blue-400" /> Capital & Disponibilidad
           </h2>
+
+          {/* GRID DE 4 TARJETAS */}
           <div className="grid grid-cols-2 gap-3">
+            {/* Inversión de bolsillo */}
+            <div className="bg-slate-800/80 rounded-2xl p-3 border border-slate-700">
+              <div className="flex items-center gap-1.5 text-blue-400 mb-1">
+                <Wallet className="w-3.5 h-3.5" />
+                <span className="text-[10px] font-bold uppercase">De Bolsillo</span>
+              </div>
+              <p className="text-lg font-black text-white">
+                {formatFromUSD(m.netPocketInvestmentUSD)}
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Capital propio</p>
+            </div>
+
+            {/* Ganancia líquida libre */}
             <div className="bg-slate-800/80 rounded-2xl p-3 border border-slate-700">
               <div className="flex items-center gap-1.5 text-emerald-400 mb-1">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-bold uppercase">De Bolsillo</span>
+                <span className="text-[10px] font-bold uppercase">Líquida Libre</span>
               </div>
-              <p className="text-lg font-black text-white">{formatFromUSD(pocketInvested)}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Lotes propios</p>
+              <p className="text-lg font-black text-white">
+                {formatFromUSD(m.liquidProfitUSD)}
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Tras gastos y reinversión</p>
             </div>
+
+            {/* Reinvertido */}
             <div className="bg-slate-800/80 rounded-2xl p-3 border border-slate-700">
               <div className="flex items-center gap-1.5 text-purple-400 mb-1">
                 <Repeat className="w-3.5 h-3.5" />
                 <span className="text-[10px] font-bold uppercase">Reinvertido</span>
               </div>
-              <p className="text-lg font-black text-white">{formatFromUSD(reinvestedCapital)}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Con ganancias</p>
+              <p className="text-lg font-black text-white">
+                {formatFromUSD(m.totalReinvested)}
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Entre proyectos</p>
+            </div>
+
+            {/* Por cobrar */}
+            <div className="bg-slate-800/80 rounded-2xl p-3 border border-slate-700">
+              <div className="flex items-center gap-1.5 text-rose-400 mb-1">
+                <Landmark className="w-3.5 h-3.5" />
+                <span className="text-[10px] font-bold uppercase">Por Cobrar</span>
+              </div>
+              <p className="text-lg font-black text-white">
+                {formatFromUSD(m.porCobrarUSD)}
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                {m.debtorsCount} cliente{m.debtorsCount !== 1 ? 's' : ''}
+              </p>
             </div>
           </div>
-          <div className="flex items-center justify-between pt-2 border-t border-slate-700">
+
+          {/* GANANCIA NETA DISPONIBLE (FUERA DEL GRID - ANCHO COMPLETO) */}
+          <div className="flex items-center justify-between pt-3 border-t border-slate-800 mt-2">
             <div>
-              <span className="text-[10px] text-slate-400 uppercase font-bold block">
+              <span className="text-[10px] text-slate-400 uppercase font-black block tracking-wide">
                 Ganancia Neta Disponible
               </span>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[10px] text-slate-500 font-medium">
                 (Ganancia bruta − reinversiones)
               </span>
             </div>
             <span
-              className={`text-xl font-black ${
+              className={`text-lg sm:text-xl font-black shrink-0 ${
                 netCashInHand >= 0 ? 'text-emerald-400' : 'text-amber-400'
               }`}
             >
