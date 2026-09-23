@@ -1,63 +1,129 @@
+// src/hooks/useInvestmentMetrics.ts
 import { useMemo } from 'react';
 import { useProductsStore } from '@/store/useProductsStore';
 import { useInvestmentsStore } from '@/store/useInvestmentsStore';
+import { useSalesStore } from '@/store/useSalesStore';
 import { EXCHANGE_RATE } from '@/lib/constants';
+import { getLiveItemProfitUSD, getShippingPerUnitUSD } from '@/lib/shippingProration';
 
-export interface InvestmentMetrics {
+export interface DetailedInvestmentMetrics {
   productsCount: number;
   totalStock: number;
-  soldCount: number;         // items vendidos (stock inicial - actual)
-  revenueUSD: number;        // ingreso generado
-  profitUSD: number;         // ganancia real
+  soldCount: number;
+  revenueUSD: number;
+  profitUSD: number;
   roiPercent: number;
-  recoveryPercent: number;   // % de la inversión recuperada
-  pendingRevenueUSD: number; // dinero atrapado en stock
+  recoveryPercent: number;
+  pendingRevenueUSD: number;
+
+  totalUnits: number;
+  productsCost: number;
+  shippingCost: number;
+  shippingCostPerUnit: number;
+  totalInvestmentUSD: number;
+  
+  expectedRevenueUSD: number;
+  expectedProfitUSD: number;
+  
+  pctInventorySold: number;
+  cashRecoveryBalance: number;
+  pendingProfitInStock: number;
+  projectedTotalProfit: number;
+  projectedTotalRevenue: number;
+
+  outOfStockCount: number;
+  lowStockCount: number;
+  availableCount: number;
+
+  reinvestedInOthers: number;
+  netAvailableProfit: number;
 }
 
-const toUSD = (price: number, currency: 'USD' | 'CUP') =>
+const toUSD = (price: number, currency?: 'USD' | 'CUP') =>
   currency === 'CUP' ? price / EXCHANGE_RATE : price;
 
-export const useInvestmentMetrics = (investmentId: number): InvestmentMetrics => {
+export const useInvestmentMetrics = (investmentId: number): DetailedInvestmentMetrics => {
   const products = useProductsStore((s) => s.products);
   const investment = useInvestmentsStore((s) => s.getInvestmentById(investmentId));
+  const investments = useInvestmentsStore((s) => s.investments);
+  const sales = useSalesStore((s) => s.sales);
 
   return useMemo(() => {
     const invProducts = products.filter((p) => p.investmentId === investmentId);
-
-    const totalStock = invProducts.reduce((sum, p) => sum + p.stock, 0);
+    const productIds = new Set(invProducts.map((p) => p.id));
     const productsCount = invProducts.length;
 
-    // Dinero atrapado en stock disponible (precio de venta)
-    const pendingRevenueUSD = invProducts.reduce(
-      (sum, p) => sum + toUSD(p.price, p.currency) * p.stock,
-      0
-    );
-
-    // Aquí en el futuro conectaremos con las ventas reales para calcular:
-    // - soldCount (unidades vendidas)
-    // - revenueUSD (ingreso real)
-    // - profitUSD (ganancia real)
-    // Por ahora usamos estimaciones basadas en costo vs precio de venta
-
-    const totalRevenuePotential = invProducts.reduce(
-      (sum, p) => sum + toUSD(p.price, p.currency) * p.stock,
-      0
-    );
-
-    const investmentUSD = investment
+    const totalInvestmentUSD = investment
       ? investment.currency === 'USD'
         ? investment.totalInvestment
         : investment.totalInvestment / EXCHANGE_RATE
       : 0;
 
-    // Ganancia proyectada = ingreso potencial - inversión
-    const profitUSD = totalRevenuePotential - investmentUSD;
-    const roiPercent = investmentUSD > 0 ? (profitUSD / investmentUSD) * 100 : 0;
+    // 1. Unidades y envíos prorrateados en vivo
+    const totalUnits = invProducts.reduce((sum, p) => {
+      const initQty = (p as { initialQuantity?: number }).initialQuantity ?? p.stock ?? 0;
+      return sum + initQty;
+    }, 0);
 
-    // Recovery: por ahora 0 hasta conectar ventas reales
-    const soldCount = 0;
-    const revenueUSD = 0;
-    const recoveryPercent = investmentUSD > 0 ? (revenueUSD / investmentUSD) * 100 : 0;
+    const totalStock = invProducts.reduce((sum, p) => sum + (p.stock ?? 0), 0);
+    const shippingCost = investment?.shippingCost ?? 0;
+    const shippingCostPerUnit = getShippingPerUnitUSD(investmentId);
+
+    // 2. Proyecciones Iniciales
+    const expectedRevenueUSD = invProducts.reduce((sum, p) => {
+      const initQty = (p as { initialQuantity?: number }).initialQuantity ?? p.stock ?? 0;
+      return sum + toUSD(p.price, p.currency) * initQty;
+    }, 0);
+
+    const expectedProfitUSD = expectedRevenueUSD - totalInvestmentUSD;
+    const roiPercent = totalInvestmentUSD > 0 ? (expectedProfitUSD / totalInvestmentUSD) * 100 : 0;
+
+    // 3. Ventas Reales (CÁLCULO EN VIVO ESTILO EXCEL)
+    let revenueUSD = 0;
+    let profitUSD = 0;
+    let soldCount = 0;
+
+    sales.forEach((sale) => {
+      sale.items?.forEach((item) => {
+        if (item.investmentId === investmentId || productIds.has(item.productId)) {
+          revenueUSD += item.totalUSD || 0;
+          // 🎯 AQUÍ ESTÁ EL FOREACH: Usamos la ganancia en vivo calculada con el envío real
+          profitUSD += getLiveItemProfitUSD(item);
+          soldCount += item.quantity || 0;
+        }
+      });
+    });
+
+    // 4. Balances y Porcentajes del Excel
+    const pctInventorySold = totalUnits > 0 ? (soldCount / totalUnits) * 100 : 0;
+    const recoveryPercent = totalInvestmentUSD > 0 ? (revenueUSD / totalInvestmentUSD) * 100 : 0;
+    const cashRecoveryBalance = revenueUSD - totalInvestmentUSD;
+
+    const pendingRevenueUSD = invProducts.reduce(
+      (sum, p) => sum + toUSD(p.price, p.currency) * p.stock,
+      0
+    );
+
+    const pendingProfitInStock = invProducts.reduce((sum, p) => {
+      const unitCost = toUSD(p.cost || 0, p.currency) + shippingCostPerUnit;
+      const unitProfit = toUSD(p.price, p.currency) - unitCost;
+      return sum + ((p.stock || 0) * unitProfit);
+    }, 0);
+
+    const projectedTotalProfit = profitUSD + pendingProfitInStock;
+    const projectedTotalRevenue = revenueUSD + pendingRevenueUSD;
+
+    // 5. Alertas de inventario
+    const outOfStockCount = invProducts.filter((p) => p.stock === 0).length;
+    const lowStockCount = invProducts.filter((p) => p.stock > 0 && p.stock <= 2).length;
+    const availableCount = invProducts.filter((p) => p.stock > 2).length;
+
+    // 6. Dinero re-invertido en otros lotes
+    const childInvestments = investments.filter(
+      (other) => (other as { fundedFromInvestmentId?: number | null }).fundedFromInvestmentId === investmentId
+    );
+    const reinvestedInOthers = childInvestments.reduce((sum, child) => sum + (child.totalInvestment || 0), 0);
+    const netAvailableProfit = profitUSD - reinvestedInOthers;
 
     return {
       productsCount,
@@ -68,6 +134,24 @@ export const useInvestmentMetrics = (investmentId: number): InvestmentMetrics =>
       roiPercent,
       recoveryPercent,
       pendingRevenueUSD,
+
+      totalUnits,
+      productsCost: investment?.productsCost || 0,
+      shippingCost,
+      shippingCostPerUnit,
+      totalInvestmentUSD,
+      expectedRevenueUSD,
+      expectedProfitUSD,
+      pctInventorySold,
+      cashRecoveryBalance,
+      pendingProfitInStock,
+      projectedTotalProfit,
+      projectedTotalRevenue,
+      outOfStockCount,
+      lowStockCount,
+      availableCount,
+      reinvestedInOthers,
+      netAvailableProfit,
     };
-  }, [products, investment, investmentId]);
+  }, [products, investment, investmentId, investments, sales]);
 };

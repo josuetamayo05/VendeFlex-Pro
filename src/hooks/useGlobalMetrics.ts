@@ -7,6 +7,7 @@ import { useClientsStore } from '@/store/useClientsStore';
 import { useFinanceStore } from '@/store/useFinanceStore';
 import { useAppStore } from '@/store/useAppStore';
 import { getClientDebtUSD } from '@/types';
+import { getLiveSaleProfitUSD } from '@/lib/shippingProration';
 
 const toUSD = (amount: number, currency: 'USD' | 'CUP', rate: number) =>
   currency === 'CUP' ? amount / rate : amount;
@@ -36,11 +37,6 @@ export const useGlobalMetrics = () => {
 
     // 2. VENTAS (Cobrado vs Fiado)
     const collectedSales = sales.filter((s) => !s.isFiado);
-    const fiadoSales = sales.filter((s) => s.isFiado);
-
-    const totalRevenueCollected = collectedSales.reduce((s, x) => s + x.totalUSD, 0);
-    const totalProfitCollected = collectedSales.reduce((s, x) => s + x.totalProfitUSD, 0);
-    const totalRevenueFiado = fiadoSales.reduce((s, x) => s + x.totalUSD, 0);
 
     // 3. GANANCIA DE HOY (fecha LOCAL del usuario, no UTC)
     const isSameLocalDay = (isoDate: string): boolean => {
@@ -52,9 +48,23 @@ export const useGlobalMetrics = () => {
         d.getDate() === now.getDate()
       );
     };
-
     const todaySales = collectedSales.filter((s) => isSameLocalDay(s.date));
-    const gananciaHoy = todaySales.reduce((s, x) => s + x.totalProfitUSD, 0);
+    const fiadoSales = sales.filter((s) => s.isFiado);
+
+    const totalRevenueCollected = collectedSales.reduce((s, x) => s + x.totalUSD, 0);
+
+    const totalProfitCollected = collectedSales.reduce(
+      (s, x) => s + getLiveSaleProfitUSD(x),
+      0
+    ); 
+
+    const gananciaHoy = todaySales.reduce(
+      (s, x) => s + getLiveSaleProfitUSD(x),
+      0
+    );
+    
+    const totalRevenueFiado = fiadoSales.reduce((s, x) => s + x.totalUSD, 0);
+
     const ingresosHoy = todaySales.reduce((s, x) => s + x.totalUSD, 0);
 
     // 4. STOCK
