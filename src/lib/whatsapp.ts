@@ -19,21 +19,15 @@ export const buildThankYouMessage = (sale: Sale): string => {
     useConfigStore.getState().config.businessName ||
     'nuestra tienda';
 
-  const items = sale.items
-    .map((i) => `• ${i.quantity}x ${i.productName} — $${i.totalUSD.toFixed(2)}`)
-    .join('\n');
+  // const items = sale.items
+  //   .map((i) => `• ${i.quantity}x ${i.productName} — $${i.totalUSD.toFixed(2)}`)
+  //   .join('\n');
 
   const clientName = sale.clientName || 'Estimad@ cliente';
 
   return `¡Hola ${clientName}! 🌸
 
 Gracias por tu compra en *${brand}* 💖
-
-🧾 *Resumen de tu pedido:*
-${items}
-
-💵 *Total:* $${sale.totalUSD.toFixed(2)} USD
-💳 Pago: ${sale.paymentMethod}
 
 Cualquier duda o si te interesa algo más, ¡escríbeme! 😊
 Gracias por confiar en nosotros 🙌`;
