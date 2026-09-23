@@ -23,33 +23,25 @@ export default function App() {
   const currentView = useAppStore((s) => s.currentView);
   const onboardingCompleted = useConfigStore((s) => s.config.onboardingCompleted);
 
-  // 🚀 ALGORITMO DE RESET DE SCROLL AL CAMBIAR DE PESTAÑA
+  // 🚀 RESET DE SCROLL DEFINITIVO Y UNIFICADO
   useEffect(() => {
-    // Ejecutamos en el siguiente frame para asegurar que la nueva vista ya se montó
-    requestAnimationFrame(() => {
-      // 1. Scroll del window / documento (móvil sin contenedor propio)
-      try {
-        window.scrollTo(0, 0);
-        document.documentElement.scrollTop = 0;
-        document.body.scrollTop = 0;
-      } catch {
-        // ignorar
-      }
+    const resetScroll = () => {
+      // 1. Resetea el contenedor de móvil
+      const mobileEl = document.getElementById('app-scroll-container-mobile');
+      if (mobileEl) mobileEl.scrollTop = 0;
 
-      // 2. Contenedores identificados por ID
-      const desktopArea = document.getElementById('desktop-scroll-area');
-      const mobileArea = document.getElementById('mobile-scroll-area');
-      if (desktopArea) desktopArea.scrollTop = 0;
-      if (mobileArea) mobileArea.scrollTop = 0;
+      // 2. Resetea el contenedor de desktop
+      const desktopEl = document.getElementById('app-scroll-container-desktop');
+      if (desktopEl) desktopEl.scrollTop = 0;
 
-      // 3. Cualquier otro elemento con overflow-y-auto o overflow-y-scroll
-      const scrollables = document.querySelectorAll<HTMLElement>(
-        '.overflow-y-auto, .overflow-y-scroll'
-      );
-      scrollables.forEach((el) => {
-        el.scrollTop = 0;
-      });
-    });
+      // 3. Resetea la ventana global por respaldo
+      window.scrollTo(0, 0);
+    };
+
+    resetScroll();
+    // Ejecutar tras renderizado de React
+    const timer = setTimeout(resetScroll, 10);
+    return () => clearTimeout(timer);
   }, [currentView]);
 
   if (!onboardingCompleted) {
