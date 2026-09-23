@@ -11,13 +11,17 @@ export const PhoneContainer: React.FC<Props> = ({ children, sidebar }) => {
       {/* ===== DESKTOP / TABLET (≥ 768px) ===== */}
       <div className="hidden md:flex min-h-screen">
         {sidebar}
-        <main className="flex-1 overflow-y-auto bg-slate-50 min-h-screen">
+        <main
+          id="desktop-scroll-area"
+          className="flex-1 overflow-y-auto bg-slate-50 min-h-screen"
+        >
           <div className="max-w-6xl mx-auto p-6 lg:p-8">{children}</div>
         </main>
       </div>
 
       {/* ===== MÓVIL UNIVERSAL ===== */}
       <div
+        id="mobile-scroll-area"
         className="md:hidden flex flex-col w-full bg-slate-50"
         style={{
           minHeight: '100dvh',

@@ -1,5 +1,5 @@
-import React from 'react';
-import { MessageCircle, CheckCircle2 } from 'lucide-react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { MessageCircle, CheckCircle2, User, Phone, X } from 'lucide-react';
 import { useCartStore } from '@/store/useCartStore';
 import { useProductsStore } from '@/store/useProductsStore';
 import { useSalesStore } from '@/store/useSalesStore';
@@ -7,7 +7,7 @@ import { useClientsStore } from '@/store/useClientsStore';
 import { useAppStore } from '@/store/useAppStore';
 import { pushToSupabase } from '@/lib/supabaseSync';
 import { EXCHANGE_RATE } from '@/lib/constants';
-import type { SaleItemDetail } from '@/types';
+import type { SaleItemDetail, Client } from '@/types';
 
 const toUSD = (price: number, currency: 'USD' | 'CUP') =>
   currency === 'CUP' ? price / EXCHANGE_RATE : price;
@@ -44,6 +44,45 @@ export const CheckoutSummary: React.FC = () => {
   const isFiado = paymentMethod === 'Fiado';
   const canCheckout = itemCount > 0;
 
+  // ═══ AUTOCOMPLETADO DE CLIENTES ═══
+  const [focus, setFocus] = useState<'name' | 'phone' | null>(null);
+  const autocompleteRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onClickOutside = (e: MouseEvent) => {
+      if (autocompleteRef.current && !autocompleteRef.current.contains(e.target as Node)) {
+        setFocus(null);
+      }
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
+
+  const suggestions = useMemo(() => {
+    const query = (focus === 'name' ? clientName : clientPhone).trim().toLowerCase();
+    if (!query || query.length < 1) return [];
+
+    return clients
+      .filter((c) => {
+        const inName = c.name.toLowerCase().includes(query);
+        const inPhone = (c.phone || '').toLowerCase().includes(query);
+        return focus === 'name' ? inName : inPhone;
+      })
+      .slice(0, 5);
+  }, [clients, clientName, clientPhone, focus]);
+
+  const pickClient = (c: Client) => {
+    setClientName(c.name);
+    setClientPhone(c.phone || '');
+    setFocus(null);
+  };
+
+  const clearClientFields = () => {
+    setClientName('');
+    setClientPhone('');
+  };
+
+  // ═══ CHECKOUT ═══
   const handleCheckout = async (sendWhatsApp: boolean) => {
     if (!canCheckout) return;
     if (isFiado && !clientName.trim()) {
@@ -51,7 +90,6 @@ export const CheckoutSummary: React.FC = () => {
       return;
     }
 
-    // 1. Detalle de items de venta
     const saleItems: SaleItemDetail[] = items.map((cartItem) => {
       const product = products.find((p) => p.id === cartItem.productId);
       const unitPriceUSD = toUSD(cartItem.unitPrice, cartItem.currency);
@@ -71,7 +109,6 @@ export const CheckoutSummary: React.FC = () => {
       };
     });
 
-    // 2. Registrar Venta
     addSale({
       items: saleItems,
       paymentMethod,
@@ -79,7 +116,6 @@ export const CheckoutSummary: React.FC = () => {
       clientPhone: clientPhone || undefined,
     });
 
-    // 3. Descontar Stock
     items.forEach((item) => {
       const product = products.find((p) => p.id === item.productId);
       if (product) {
@@ -87,7 +123,6 @@ export const CheckoutSummary: React.FC = () => {
       }
     });
 
-    // 4. Si es FIADO o hay cliente, registrar deudas en el Módulo Clientes
     if (clientName.trim()) {
       const client = clients.find(
         (c) => c.name.toLowerCase().trim() === clientName.toLowerCase().trim()
@@ -96,13 +131,11 @@ export const CheckoutSummary: React.FC = () => {
       let targetClientId = client?.id;
 
       if (!client) {
-        // Crear cliente si no existe
         addClient({
           name: clientName.trim(),
           phone: clientPhone.trim() || undefined,
           tags: isFiado ? ['Fiado'] : ['Cliente'],
         });
-        // Obtener ID del cliente recién creado
         const updatedClients = useClientsStore.getState().clients;
         const newClient = updatedClients.find(
           (c) => c.name.toLowerCase().trim() === clientName.toLowerCase().trim()
@@ -110,7 +143,6 @@ export const CheckoutSummary: React.FC = () => {
         targetClientId = newClient?.id;
       }
 
-      // Si es FIADO, agregar la deuda
       if (isFiado && targetClientId) {
         const concepts = items.map((i) => `${i.name} x${i.quantity}`).join(', ');
         addDebt(targetClientId, {
@@ -122,7 +154,6 @@ export const CheckoutSummary: React.FC = () => {
       }
     }
 
-    // 5. Enviar por WhatsApp si fue solicitado
     if (sendWhatsApp && clientPhone) {
       const phone = clientPhone.replace(/\D/g, '');
       const fullPhone = phone.length === 8 ? `53${phone}` : phone;
@@ -149,7 +180,6 @@ export const CheckoutSummary: React.FC = () => {
       window.open(`https://wa.me/${fullPhone}?text=${msg}`, '_blank');
     }
 
-    // Sincronizar en segundo plano si hay Supabase
     pushToSupabase().catch(() => {});
 
     alert(
@@ -184,24 +214,86 @@ export const CheckoutSummary: React.FC = () => {
         </div>
       </div>
 
-      {/* Cliente */}
-      <div className="grid grid-cols-2 gap-2">
-        <input
-          type="text"
-          placeholder={isFiado ? 'Nombre cliente *' : 'Cliente (opcional)'}
-          value={clientName}
-          onChange={(e) => setClientName(e.target.value)}
-          className={`w-full bg-slate-50 border rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none ${
-            isFiado && !clientName ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200'
-          }`}
-        />
-        <input
-          type="tel"
-          placeholder="Teléfono WA (opcional)"
-          value={clientPhone}
-          onChange={(e) => setClientPhone(e.target.value)}
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none"
-        />
+      {/* ═══ CLIENTE CON AUTOCOMPLETADO ═══ */}
+      <div ref={autocompleteRef} className="relative space-y-2">
+        {/* Nombre */}
+        <div className="relative">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+            <User className="w-3.5 h-3.5" />
+          </div>
+          <input
+            type="text"
+            placeholder={isFiado ? 'Nombre cliente *' : 'Cliente (opcional)'}
+            value={clientName}
+            onChange={(e) => setClientName(e.target.value)}
+            onFocus={() => setFocus('name')}
+            className={`w-full bg-slate-50 border rounded-xl pl-8 pr-8 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500 ${
+              isFiado && !clientName ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200'
+            }`}
+          />
+          {(clientName || clientPhone) && (
+            <button
+              type="button"
+              onClick={clearClientFields}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-300 hover:text-rose-500 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Teléfono */}
+        <div className="relative">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+            <Phone className="w-3.5 h-3.5" />
+          </div>
+          <input
+            type="tel"
+            placeholder="Teléfono WA (opcional)"
+            value={clientPhone}
+            onChange={(e) => setClientPhone(e.target.value)}
+            onFocus={() => setFocus('phone')}
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500"
+          />
+        </div>
+
+        {/* Sugerencias */}
+        {focus && suggestions.length > 0 && (
+          <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+            <p className="text-[9px] font-black text-slate-400 uppercase px-3 py-2 border-b border-slate-100">
+              Clientes existentes ({suggestions.length})
+            </p>
+            <div className="max-h-52 overflow-y-auto">
+              {suggestions.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => pickClient(c)}
+                  className="w-full text-left px-3 py-2.5 hover:bg-blue-50 border-b border-slate-50 last:border-0 flex items-center gap-2.5 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-black text-xs flex items-center justify-center flex-shrink-0">
+                    {c.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-slate-900 truncate">
+                      {c.name}
+                    </p>
+                    {c.phone && (
+                      <p className="text-[10px] text-slate-500 font-medium">
+                        {c.phone}
+                      </p>
+                    )}
+                  </div>
+                  {(c.totalSpentUSD || 0) > 0 && (
+                    <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                      ${c.totalSpentUSD.toFixed(0)}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {paymentMethod === 'Efectivo CUP' && (

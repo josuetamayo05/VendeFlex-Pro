@@ -42,9 +42,18 @@ export const useGlobalMetrics = () => {
     const totalProfitCollected = collectedSales.reduce((s, x) => s + x.totalProfitUSD, 0);
     const totalRevenueFiado = fiadoSales.reduce((s, x) => s + x.totalUSD, 0);
 
-    // 3. GANANCIA DE HOY
-    const todayKey = new Date().toISOString().split('T')[0];
-    const todaySales = collectedSales.filter((s) => s.date.startsWith(todayKey));
+    // 3. GANANCIA DE HOY (fecha LOCAL del usuario, no UTC)
+    const isSameLocalDay = (isoDate: string): boolean => {
+      const d = new Date(isoDate);
+      const now = new Date();
+      return (
+        d.getFullYear() === now.getFullYear() &&
+        d.getMonth() === now.getMonth() &&
+        d.getDate() === now.getDate()
+      );
+    };
+
+    const todaySales = collectedSales.filter((s) => isSameLocalDay(s.date));
     const gananciaHoy = todaySales.reduce((s, x) => s + x.totalProfitUSD, 0);
     const ingresosHoy = todaySales.reduce((s, x) => s + x.totalUSD, 0);
 

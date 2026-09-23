@@ -25,19 +25,32 @@ export default function App() {
 
   // 🚀 ALGORITMO DE RESET DE SCROLL AL CAMBIAR DE PESTAÑA
   useEffect(() => {
-    // 1. Resetea el scroll de la ventana principal
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    // Ejecutamos en el siguiente frame para asegurar que la nueva vista ya se montó
+    requestAnimationFrame(() => {
+      // 1. Scroll del window / documento (móvil sin contenedor propio)
+      try {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      } catch {
+        // ignorar
+      }
 
-    // 2. Si tu contenedor interno o body tiene overflow-y-auto, también los resetea:
-    document.documentElement.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    document.body.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      // 2. Contenedores identificados por ID
+      const desktopArea = document.getElementById('desktop-scroll-area');
+      const mobileArea = document.getElementById('mobile-scroll-area');
+      if (desktopArea) desktopArea.scrollTop = 0;
+      if (mobileArea) mobileArea.scrollTop = 0;
 
-    // 3. Si PhoneContainer tiene scroll interno, busca el elemento contenedor
-    const scrollableContainer = document.querySelector('.phone-scroll-container');
-    if (scrollableContainer) {
-      scrollableContainer.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    }
-  }, [currentView]); // 👈 Se ejecuta CADA VEZ que currentView cambia
+      // 3. Cualquier otro elemento con overflow-y-auto o overflow-y-scroll
+      const scrollables = document.querySelectorAll<HTMLElement>(
+        '.overflow-y-auto, .overflow-y-scroll'
+      );
+      scrollables.forEach((el) => {
+        el.scrollTop = 0;
+      });
+    });
+  }, [currentView]);
 
   if (!onboardingCompleted) {
     return <OnboardingScreen />;

@@ -1,13 +1,13 @@
 // src/components/ui/ClientAutocomplete.tsx
-import { useState, useRef, useEffect } from 'react';
-import { User, Phone, Search } from 'lucide-react';
+import { useMemo, useState, useEffect, useRef } from 'react';
+import { User, Phone, X } from 'lucide-react';
 import { useClientsStore } from '@/store/useClientsStore';
 import type { Client } from '@/types';
 
 interface Props {
   clientName: string;
   clientPhone: string;
-  onChange: (data: { name: string; phone: string }) => void;
+  onChange: (data: { clientName: string; clientPhone: string }) => void;
 }
 
 export const ClientAutocomplete: React.FC<Props> = ({
@@ -16,103 +16,114 @@ export const ClientAutocomplete: React.FC<Props> = ({
   onChange,
 }) => {
   const clients = useClientsStore((s) => s.clients);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [suggestions, setSuggestions] = useState<Client[]>([]);
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [focus, setFocus] = useState<'name' | 'phone' | null>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
 
-  // Cerrar dropdown al hacer click fuera
+  // Cierra sugerencias si hago click fuera
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setShowSuggestions(false);
+    const onClickOutside = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) {
+        setFocus(null);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
 
-  const handleNameChange = (value: string) => {
-    onChange({ name: value, phone: clientPhone });
-    const q = value.trim().toLowerCase();
-    if (!q) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-    const results = clients
-      .filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          (c.phone && c.phone.includes(q))
-      )
-      .slice(0, 6);
-    setSuggestions(results);
-    setShowSuggestions(results.length > 0);
-  };
+  // Filtra sugerencias
+  const suggestions = useMemo(() => {
+    const query = (focus === 'name' ? clientName : clientPhone).trim().toLowerCase();
+    if (!query || query.length < 1) return [];
 
-  const handlePhoneChange = (value: string) => {
-    onChange({ name: clientName, phone: value });
-    const q = value.trim();
-    if (!q) return;
-    const match = clients.find((c) => c.phone && c.phone.includes(q));
-    if (match) {
-      setSuggestions([match]);
-      setShowSuggestions(true);
-    }
-  };
+    return clients
+      .filter((c) => {
+        const inName = c.name.toLowerCase().includes(query);
+        const inPhone = (c.phone || '').toLowerCase().includes(query);
+        return focus === 'name' ? inName : inPhone;
+      })
+      .slice(0, 5);
+  }, [clients, clientName, clientPhone, focus]);
 
   const pickClient = (c: Client) => {
-    onChange({ name: c.name, phone: c.phone || '' });
-    setShowSuggestions(false);
+    onChange({
+      clientName: c.name,
+      clientPhone: c.phone || '',
+    });
+    setFocus(null);
+  };
+
+  const clearFields = () => {
+    onChange({ clientName: '', clientPhone: '' });
   };
 
   return (
-    <div ref={wrapperRef} className="space-y-2 relative">
+    <div ref={boxRef} className="relative space-y-2">
+      {/* Nombre */}
       <div className="relative">
-        <User className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+          <User className="w-4 h-4" />
+        </div>
         <input
           type="text"
+          placeholder="Nombre del cliente"
           value={clientName}
-          onChange={(e) => handleNameChange(e.target.value)}
-          onFocus={() => clientName && handleNameChange(clientName)}
-          placeholder="Nombre del cliente (escribe para buscar)"
-          className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm font-medium bg-white focus:border-blue-500 focus:outline-none"
+          onChange={(e) => onChange({ clientName: e.target.value, clientPhone })}
+          onFocus={() => setFocus('name')}
+          className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-9 py-3 text-xs font-bold focus:border-blue-500 focus:outline-none"
         />
+        {(clientName || clientPhone) && (
+          <button
+            onClick={clearFields}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-rose-500"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
+      {/* Teléfono */}
       <div className="relative">
-        <Phone className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+          <Phone className="w-4 h-4" />
+        </div>
         <input
           type="tel"
+          placeholder="Teléfono (opcional)"
           value={clientPhone}
-          onChange={(e) => handlePhoneChange(e.target.value)}
-          placeholder="Teléfono (535..)"
-          className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm font-medium bg-white focus:border-blue-500 focus:outline-none"
+          onChange={(e) => onChange({ clientName, clientPhone: e.target.value })}
+          onFocus={() => setFocus('phone')}
+          className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-3 text-xs font-bold focus:border-blue-500 focus:outline-none"
         />
       </div>
 
-      {/* Dropdown de sugerencias */}
-      {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-lg z-30 overflow-hidden">
-          <div className="p-2 text-[10px] font-bold text-slate-400 uppercase bg-slate-50 border-b border-slate-100 flex items-center gap-1.5">
-            <Search className="w-3 h-3" /> Clientes registrados
-          </div>
-          <div className="max-h-56 overflow-y-auto">
+      {/* Sugerencias */}
+      {focus && suggestions.length > 0 && (
+        <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+          <p className="text-[9px] font-black text-slate-400 uppercase px-3 py-2 border-b border-slate-100">
+            Clientes existentes
+          </p>
+          <div className="max-h-52 overflow-y-auto">
             {suggestions.map((c) => (
               <button
                 key={c.id}
-                type="button"
                 onClick={() => pickClient(c)}
-                className="w-full text-left px-3 py-2.5 hover:bg-blue-50 flex items-center justify-between gap-2 border-b border-slate-50 last:border-0"
+                className="w-full text-left px-3 py-2.5 hover:bg-blue-50 border-b border-slate-50 last:border-0 flex items-center gap-2.5 transition-colors"
               >
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-slate-800 truncate">{c.name}</p>
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-black text-xs flex items-center justify-center flex-shrink-0">
+                  {c.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-slate-900 truncate">
+                    {c.name}
+                  </p>
                   {c.phone && (
-                    <p className="text-[11px] text-slate-400 font-medium">{c.phone}</p>
+                    <p className="text-[10px] text-slate-500 font-medium">
+                      {c.phone}
+                    </p>
                   )}
                 </div>
-                {c.totalSpentUSD > 0 && (
-                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                {(c.totalSpentUSD || 0) > 0 && (
+                  <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">
                     ${c.totalSpentUSD.toFixed(0)}
                   </span>
                 )}
