@@ -20,6 +20,7 @@ import { Cloud, CloudUpload, CloudDownload } from 'lucide-react';
 import { useConfigStore } from '@/store/useConfigStore';
 import { Store, Save } from 'lucide-react';
 import { InstallModal } from '@/components/pwa/InstallModal';
+import { RefreshCw } from 'lucide-react';
 
 export const SettingsScreen: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -38,6 +39,13 @@ export const SettingsScreen: React.FC = () => {
   const productsCount = useProductsStore((s) => s.products.length);
   const salesCount = useSalesStore((s) => s.sales.length);
   const clientsCount = useClientsStore((s) => s.clients.length);
+
+  const recalculateAllSalesProfits = useSalesStore((s) => s.recalculateAllSalesProfits);
+
+  const handleRecalculate = () => {
+    recalculateAllSalesProfits();
+    alert('✅ ¡Ganancias pasadas recalculadas con éxito! Ahora incluyen el costo de envío prorrateado de cada inversión.');
+  };
 
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -145,6 +153,19 @@ export const SettingsScreen: React.FC = () => {
         <p className="text-[11px] text-slate-400 font-medium mt-0.5">
           Backup, restauración y datos
         </p>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-2">
+        <h4 className="font-bold text-slate-800 text-sm">Sincronización de Costos</h4>
+        <p className="text-xs text-slate-400">
+          Recalcula las ganancias de tus ventas pasadas incluyendo los envíos reales por producto.
+        </p>
+        <button
+          onClick={handleRecalculate}
+          className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs transition-colors"
+        >
+          <RefreshCw className="w-4 h-4 text-blue-600" /> Sincronizar Ganancias con Excel
+        </button>
       </div>
 
       <div className="bg-white rounded-2xl p-4 border border-slate-200 space-y-3">

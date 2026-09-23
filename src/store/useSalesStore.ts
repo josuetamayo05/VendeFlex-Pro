@@ -2,8 +2,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Sale, SaleItemDetail, PaymentMethod } from '@/types';
-import { useClientsStore } from '@/store/useClientsStore';
+//import { useClientsStore } from '@/store/useClientsStore';
 import { useProductsStore } from '@/store/useProductsStore';
+import { useInvestmentsStore } from '@/store/useInvestmentsStore';
+import { EXCHANGE_RATE } from '@/lib/constants';
 
 interface SalesStore {
   sales: Sale[];
@@ -29,57 +31,12 @@ interface SalesStore {
   getRevenueByInvestment: (investmentId: number) => number;
   getProfitByInvestment: (investmentId: number) => number;
   getSoldQuantityByProduct: (productId: number) => number;
+  recalculateAllSalesProfits: () => void; // 👈 FUNCIÓN DE REPARACIÓN
   resetSales: () => void;
 }
 
-const findClient = (clientName?: string, clientPhone?: string) => {
-  const clientsStore = useClientsStore.getState();
-  const nameIdentifier = (clientName || '').trim().toLowerCase();
-  return clientsStore.clients.find(
-    (c) =>
-      (nameIdentifier && c.name.toLowerCase() === nameIdentifier) ||
-      (clientPhone && c.phone === clientPhone)
-  );
-};
-
-const syncClientSpend = (
-  clientName: string | undefined,
-  clientPhone: string | undefined,
-  deltaUSD: number,
-  dateISO?: string
-) => {
-  if ((!clientName && !clientPhone) || deltaUSD === 0) return;
-  const clientsStore = useClientsStore.getState();
-  const existing = findClient(clientName, clientPhone);
-
-  if (existing) {
-    clientsStore.updateClient(existing.id, {
-      totalSpentUSD: Math.max(0, (existing.totalSpentUSD || 0) + deltaUSD),
-      ...(dateISO ? { lastPurchase: dateISO } : {}),
-    });
-  } else if (deltaUSD > 0) {
-    clientsStore.addClient({
-      id: Date.now(),
-      name: clientName || clientPhone || 'Cliente Nuevo',
-      phone: clientPhone || '',
-      tags: ['Nuevo'],
-      debts: [],
-      totalSpentUSD: deltaUSD,
-      lastPurchase: dateISO || new Date().toISOString(),
-    });
-  }
-};
-
-const adjustStock = (items: SaleItemDetail[], direction: 1 | -1) => {
-  const productsStore = useProductsStore.getState();
-  items.forEach((item) => {
-    const product = productsStore.products.find((p) => p.id === item.productId);
-    if (!product) return;
-    // direction -1 = restar stock (venta), +1 = devolver stock (borrar/editar)
-    const next = Math.max(0, product.stock + direction * item.quantity);
-    productsStore.updateProduct(product.id, { stock: next });
-  });
-};
+const toUSD = (price: number, currency?: 'USD' | 'CUP') =>
+  currency === 'CUP' ? price / EXCHANGE_RATE : price;
 
 export const useSalesStore = create<SalesStore>()(
   persist(
@@ -87,7 +44,6 @@ export const useSalesStore = create<SalesStore>()(
       sales: [],
 
       addSale: ({ items, paymentMethod, clientName, clientPhone }) => {
-        // 🚫 Evitar ventas vacías o de $0
         const cleanItems = items.filter((i) => i.quantity > 0);
         if (cleanItems.length === 0) return null;
 
@@ -108,51 +64,22 @@ export const useSalesStore = create<SalesStore>()(
           isFiado: paymentMethod === 'Fiado',
         };
 
-        // Stock ya debería descontarse en el POS al cobrar;
-        // si tu POS NO descuenta, descomenta:
-        // adjustStock(cleanItems, -1);
-
-        syncClientSpend(newSale.clientName, newSale.clientPhone, totalUSD, dateNow);
-
         set((s) => ({ sales: [newSale, ...s.sales] }));
         return newSale.id;
       },
 
-      /**
-       * EDITAR venta:
-       * 1) Devuelve stock de ítems viejos
-       * 2) Descuenta stock de ítems nuevos
-       * 3) Ajusta totalSpent del cliente (viejo y nuevo)
-       */
       updateSale: (id, data) => {
         const oldSale = get().sales.find((s) => s.id === id);
         if (!oldSale) return;
 
         const cleanItems = data.items.filter((i) => i.quantity > 0);
         if (cleanItems.length === 0) {
-          // Si quedó vacía, eliminar
           get().deleteSale(id);
           return;
         }
 
         const totalUSD = cleanItems.reduce((sum, i) => sum + i.totalUSD, 0);
         const totalProfitUSD = cleanItems.reduce((sum, i) => sum + i.profitUSD, 0);
-
-        // 1. Devolver stock anterior
-        adjustStock(oldSale.items, +1);
-        // 2. Descontar stock nuevo
-        adjustStock(cleanItems, -1);
-
-        // 3. Ajustar gasto del cliente
-        // Quitar monto viejo del cliente anterior
-        syncClientSpend(oldSale.clientName, oldSale.clientPhone, -oldSale.totalUSD);
-        // Sumar monto nuevo al cliente nuevo
-        syncClientSpend(
-          data.clientName?.trim() || undefined,
-          data.clientPhone?.trim() || undefined,
-          totalUSD,
-          oldSale.date
-        );
 
         const updated: Sale = {
           ...oldSale,
@@ -171,15 +98,55 @@ export const useSalesStore = create<SalesStore>()(
       },
 
       deleteSale: (id) => {
-        const sale = get().sales.find((s) => s.id === id);
-        if (!sale) return;
-
-        // Devolver stock
-        adjustStock(sale.items, +1);
-        // Restar gasto al cliente
-        syncClientSpend(sale.clientName, sale.clientPhone, -sale.totalUSD);
-
         set((s) => ({ sales: s.sales.filter((saleItem) => saleItem.id !== id) }));
+      },
+
+      // 🛠️ RECALCULA LAS GANANCIAS DE TODAS LAS VENTAS PASADAS USANDO COSTO + ENVÍO
+      recalculateAllSalesProfits: () => {
+        const products = useProductsStore.getState().products;
+        const investments = useInvestmentsStore.getState().investments;
+
+        const updatedSales = get().sales.map((sale) => {
+          let saleProfitUSD = 0;
+
+          const updatedItems = sale.items.map((item) => {
+            const product = products.find((p) => p.id === item.productId);
+            const inv = investments.find((i) => i.id === (product?.investmentId || item.investmentId));
+
+            // Base cost
+            const baseCostUSD = product ? toUSD(product.cost, product.currency) : item.unitCostUSD;
+
+            // Prorrateo de envío
+            let shippingPerUnit = 0;
+            if (inv && inv.shippingCost > 0) {
+              const invProducts = products.filter((p) => p.investmentId === inv.id);
+              const totalUnits = invProducts.reduce((sum, p) => {
+                const initQty = (p as { initialQuantity?: number }).initialQuantity ?? p.stock ?? 0;
+                return sum + initQty;
+              }, 0);
+              const shippingUSD = inv.currency === 'USD' ? inv.shippingCost : inv.shippingCost / EXCHANGE_RATE;
+              shippingPerUnit = totalUnits > 0 ? shippingUSD / totalUnits : 0;
+            }
+
+            const realUnitCostUSD = baseCostUSD + shippingPerUnit;
+            const itemProfitUSD = (item.unitPriceUSD - realUnitCostUSD) * item.quantity;
+            saleProfitUSD += itemProfitUSD;
+
+            return {
+              ...item,
+              unitCostUSD: realUnitCostUSD,
+              profitUSD: itemProfitUSD,
+            };
+          });
+
+          return {
+            ...sale,
+            items: updatedItems,
+            totalProfitUSD: saleProfitUSD,
+          };
+        });
+
+        set({ sales: updatedSales });
       },
 
       getSalesByInvestment: (investmentId) =>

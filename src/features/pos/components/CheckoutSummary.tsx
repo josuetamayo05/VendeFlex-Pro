@@ -1,13 +1,15 @@
+// src/features/pos/components/CheckoutSummary.tsx
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { MessageCircle, CheckCircle2, User, Phone, X } from 'lucide-react';
 import { useCartStore } from '@/store/useCartStore';
 import { useProductsStore } from '@/store/useProductsStore';
 import { useSalesStore } from '@/store/useSalesStore';
 import { useClientsStore } from '@/store/useClientsStore';
+import { useInvestmentsStore } from '@/store/useInvestmentsStore';
 import { useAppStore } from '@/store/useAppStore';
 import { pushToSupabase } from '@/lib/supabaseSync';
 import { EXCHANGE_RATE } from '@/lib/constants';
-import type { SaleItemDetail, Client } from '@/types';
+import type { SaleItemDetail, Client, ProductItem } from '@/types';
 
 const toUSD = (price: number, currency: 'USD' | 'CUP') =>
   currency === 'CUP' ? price / EXCHANGE_RATE : price;
@@ -30,6 +32,7 @@ export const CheckoutSummary: React.FC = () => {
   } = useCartStore();
 
   const products = useProductsStore((s) => s.products);
+  const investments = useInvestmentsStore((s) => s.investments);
   const updateStock = useProductsStore((s) => s.updateStock);
   const addSale = useSalesStore((s) => s.addSale);
   const clients = useClientsStore((s) => s.clients);
@@ -44,91 +47,105 @@ export const CheckoutSummary: React.FC = () => {
   const isFiado = paymentMethod === 'Fiado';
   const canCheckout = itemCount > 0;
 
-    // ═══ AUTOCOMPLETADO INTELIGENTE DE CLIENTES ═══
-    const [focus, setFocus] = useState<'name' | 'phone' | null>(null);
-    const autocompleteRef = useRef<HTMLDivElement>(null);
-    // Evita re-disparar el auto-fill en bucle mientras el usuario edita
-    const lastAutoFilledRef = useRef<string>('');
+  // ═══ CÁLCULO DE COSTO REAL CON ENVÍO INCLUIDO ═══
+  const getRealUnitCostUSD = (product: ProductItem | undefined): number => {
+    if (!product) return 0;
+    const baseCostUSD = toUSD(product.cost || 0, product.currency);
+    if (!product.investmentId) return baseCostUSD;
 
-    useEffect(() => {
-      const onClickOutside = (e: MouseEvent) => {
-        if (autocompleteRef.current && !autocompleteRef.current.contains(e.target as Node)) {
-          setFocus(null);
-        }
-      };
-      document.addEventListener('mousedown', onClickOutside);
-      return () => document.removeEventListener('mousedown', onClickOutside);
-    }, []);
+    const inv = investments.find((i) => i.id === product.investmentId);
+    if (!inv) return baseCostUSD;
 
-    // Auto-relleno silencioso: si el nombre o teléfono coinciden EXACTO con un cliente
-    useEffect(() => {
-      const nameQ = clientName.trim().toLowerCase();
-      const phoneQ = clientPhone.trim().toLowerCase();
+    // Obtener unidades totales del lote para prorratear el envío
+    const invProducts = products.filter((p) => p.investmentId === product.investmentId);
+    const totalUnits = invProducts.reduce((sum, p) => {
+      const initQty = (p as { initialQuantity?: number }).initialQuantity ?? p.stock ?? 0;
+      return sum + initQty;
+    }, 0);
 
-      // Evitar loop: si ya auto-rellenamos este mismo valor, no repetir
-      const signature = `${nameQ}|${phoneQ}`;
-      if (signature === lastAutoFilledRef.current) return;
+    const shippingCostUSD =
+      inv.currency === 'USD' ? inv.shippingCost : inv.shippingCost / EXCHANGE_RATE;
 
-      // 1) Nombre exacto → rellenar teléfono (si el teléfono está vacío o incompleto)
-      if (nameQ.length >= 2) {
-        const byName = clients.find((c) => c.name.toLowerCase().trim() === nameQ);
-        if (byName?.phone) {
-          const existingPhone = (byName.phone || '').trim();
-          if (existingPhone && clientPhone.trim() !== existingPhone) {
-            lastAutoFilledRef.current = `${nameQ}|${existingPhone.toLowerCase()}`;
-            setClientPhone(existingPhone);
-            return;
-          }
+    const shippingPerUnit = totalUnits > 0 ? shippingCostUSD / totalUnits : 0;
+    return baseCostUSD + shippingPerUnit;
+  };
+
+  // ═══ AUTOCOMPLETADO DE CLIENTES ═══
+  const [focus, setFocus] = useState<'name' | 'phone' | null>(null);
+  const autocompleteRef = useRef<HTMLDivElement>(null);
+  const lastAutoFilledRef = useRef<string>('');
+
+  useEffect(() => {
+    const onClickOutside = (e: MouseEvent) => {
+      if (autocompleteRef.current && !autocompleteRef.current.contains(e.target as Node)) {
+        setFocus(null);
+      }
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const nameQ = clientName.trim().toLowerCase();
+    const phoneQ = clientPhone.trim().toLowerCase();
+    const signature = `${nameQ}|${phoneQ}`;
+    if (signature === lastAutoFilledRef.current) return;
+
+    if (nameQ.length >= 2) {
+      const byName = clients.find((c) => c.name.toLowerCase().trim() === nameQ);
+      if (byName?.phone) {
+        const existingPhone = (byName.phone || '').trim();
+        if (existingPhone && clientPhone.trim() !== existingPhone) {
+          lastAutoFilledRef.current = `${nameQ}|${existingPhone.toLowerCase()}`;
+          setClientPhone(existingPhone);
+          return;
         }
       }
+    }
 
-      // 2) Teléfono exacto (mín. 6 dígitos) → rellenar nombre (si el nombre está vacío)
-      const phoneDigits = phoneQ.replace(/\D/g, '');
-      if (phoneDigits.length >= 6 && !clientName.trim()) {
-        const byPhone = clients.find((c) => {
-          const cDigits = (c.phone || '').replace(/\D/g, '');
-          return cDigits === phoneDigits || cDigits.endsWith(phoneDigits) || phoneDigits.endsWith(cDigits);
-        });
-        if (byPhone) {
-          lastAutoFilledRef.current = `${byPhone.name.toLowerCase()}|${phoneQ}`;
-          setClientName(byPhone.name);
-        }
+    const phoneDigits = phoneQ.replace(/\D/g, '');
+    if (phoneDigits.length >= 6 && !clientName.trim()) {
+      const byPhone = clients.find((c) => {
+        const cDigits = (c.phone || '').replace(/\D/g, '');
+        return cDigits === phoneDigits || cDigits.endsWith(phoneDigits) || phoneDigits.endsWith(cDigits);
+      });
+      if (byPhone) {
+        lastAutoFilledRef.current = `${byPhone.name.toLowerCase()}|${phoneQ}`;
+        setClientName(byPhone.name);
       }
-    }, [clientName, clientPhone, clients, setClientName, setClientPhone]);
+    }
+  }, [clientName, clientPhone, clients, setClientName, setClientPhone]);
 
-    const suggestions = useMemo(() => {
-      const query = (focus === 'name' ? clientName : clientPhone).trim().toLowerCase();
-      if (!query || query.length < 1) return [];
+  const suggestions = useMemo(() => {
+    const query = (focus === 'name' ? clientName : clientPhone).trim().toLowerCase();
+    if (!query || query.length < 1) return [];
 
-      return clients
-        .filter((c) => {
-          if (focus === 'name') {
-            return c.name.toLowerCase().includes(query);
-          }
-          // En teléfono comparamos también sin guiones/espacios
-          const qDigits = query.replace(/\D/g, '');
-          const cDigits = (c.phone || '').replace(/\D/g, '');
-          return (
-            (c.phone || '').toLowerCase().includes(query) ||
-            (qDigits.length >= 3 && cDigits.includes(qDigits))
-          );
-        })
-        .slice(0, 5);
-    }, [clients, clientName, clientPhone, focus]);
+    return clients
+      .filter((c) => {
+        if (focus === 'name') return c.name.toLowerCase().includes(query);
+        const qDigits = query.replace(/\D/g, '');
+        const cDigits = (c.phone || '').replace(/\D/g, '');
+        return (
+          (c.phone || '').toLowerCase().includes(query) ||
+          (qDigits.length >= 3 && cDigits.includes(qDigits))
+        );
+      })
+      .slice(0, 5);
+  }, [clients, clientName, clientPhone, focus]);
 
-    const pickClient = (c: Client) => {
-      const phone = c.phone || '';
-      lastAutoFilledRef.current = `${c.name.toLowerCase()}|${phone.toLowerCase()}`;
-      setClientName(c.name);
-      setClientPhone(phone); // ← SIEMPRE rellena teléfono si está registrado
-      setFocus(null);
-    };
+  const pickClient = (c: Client) => {
+    const phone = c.phone || '';
+    lastAutoFilledRef.current = `${c.name.toLowerCase()}|${phone.toLowerCase()}`;
+    setClientName(c.name);
+    setClientPhone(phone);
+    setFocus(null);
+  };
 
-    const clearClientFields = () => {
-      lastAutoFilledRef.current = '';
-      setClientName('');
-      setClientPhone('');
-    };
+  const clearClientFields = () => {
+    lastAutoFilledRef.current = '';
+    setClientName('');
+    setClientPhone('');
+  };
 
   // ═══ CHECKOUT ═══
   const handleCheckout = async (sendWhatsApp: boolean) => {
@@ -141,7 +158,10 @@ export const CheckoutSummary: React.FC = () => {
     const saleItems: SaleItemDetail[] = items.map((cartItem) => {
       const product = products.find((p) => p.id === cartItem.productId);
       const unitPriceUSD = toUSD(cartItem.unitPrice, cartItem.currency);
-      const unitCostUSD = product?.cost ? toUSD(product.cost, cartItem.currency) : 0;
+      
+      // 🎯 AHORA SÍ INCLUYE BASE + ENVÍO REAL
+      const unitCostUSD = getRealUnitCostUSD(product);
+      
       const totalUSD = unitPriceUSD * cartItem.quantity;
       const profitUSD = (unitPriceUSD - unitCostUSD) * cartItem.quantity;
 
@@ -262,9 +282,8 @@ export const CheckoutSummary: React.FC = () => {
         </div>
       </div>
 
-      {/* ═══ CLIENTE CON AUTOCOMPLETADO ═══ */}
+      {/* Cliente */}
       <div ref={autocompleteRef} className="relative space-y-2">
-        {/* Nombre */}
         <div className="relative">
           <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
             <User className="w-3.5 h-3.5" />
@@ -274,7 +293,7 @@ export const CheckoutSummary: React.FC = () => {
             placeholder={isFiado ? 'Nombre cliente *' : 'Cliente (opcional)'}
             value={clientName}
             onChange={(e) => {
-              lastAutoFilledRef.current = ''; // el usuario está editando a mano
+              lastAutoFilledRef.current = '';
               setClientName(e.target.value);
             }}
             onFocus={() => setFocus('name')}
@@ -294,7 +313,6 @@ export const CheckoutSummary: React.FC = () => {
           )}
         </div>
 
-        {/* Teléfono */}
         <div className="relative">
           <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
             <Phone className="w-3.5 h-3.5" />
@@ -313,11 +331,10 @@ export const CheckoutSummary: React.FC = () => {
           />
         </div>
 
-        {/* Sugerencias */}
         {focus && suggestions.length > 0 && (
           <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
             <p className="text-[9px] font-black text-slate-400 uppercase px-3 py-2 border-b border-slate-100">
-              Clientes existentes · toca para rellenar todo
+              Clientes existentes
             </p>
             <div className="max-h-52 overflow-y-auto">
               {suggestions.map((c) => (
@@ -335,18 +352,6 @@ export const CheckoutSummary: React.FC = () => {
                     <p className="text-[10px] text-slate-500 font-medium">
                       {c.phone ? c.phone : 'Sin teléfono guardado'}
                     </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-                    {(c.totalSpentUSD || 0) > 0 && (
-                      <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">
-                        ${c.totalSpentUSD.toFixed(0)}
-                      </span>
-                    )}
-                    {c.phone && (
-                      <span className="text-[8px] font-bold text-blue-500">
-                        + tel
-                      </span>
-                    )}
                   </div>
                 </button>
               ))}
