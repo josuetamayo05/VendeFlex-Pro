@@ -44,43 +44,91 @@ export const CheckoutSummary: React.FC = () => {
   const isFiado = paymentMethod === 'Fiado';
   const canCheckout = itemCount > 0;
 
-  // ═══ AUTOCOMPLETADO DE CLIENTES ═══
-  const [focus, setFocus] = useState<'name' | 'phone' | null>(null);
-  const autocompleteRef = useRef<HTMLDivElement>(null);
+    // ═══ AUTOCOMPLETADO INTELIGENTE DE CLIENTES ═══
+    const [focus, setFocus] = useState<'name' | 'phone' | null>(null);
+    const autocompleteRef = useRef<HTMLDivElement>(null);
+    // Evita re-disparar el auto-fill en bucle mientras el usuario edita
+    const lastAutoFilledRef = useRef<string>('');
 
-  useEffect(() => {
-    const onClickOutside = (e: MouseEvent) => {
-      if (autocompleteRef.current && !autocompleteRef.current.contains(e.target as Node)) {
-        setFocus(null);
+    useEffect(() => {
+      const onClickOutside = (e: MouseEvent) => {
+        if (autocompleteRef.current && !autocompleteRef.current.contains(e.target as Node)) {
+          setFocus(null);
+        }
+      };
+      document.addEventListener('mousedown', onClickOutside);
+      return () => document.removeEventListener('mousedown', onClickOutside);
+    }, []);
+
+    // Auto-relleno silencioso: si el nombre o teléfono coinciden EXACTO con un cliente
+    useEffect(() => {
+      const nameQ = clientName.trim().toLowerCase();
+      const phoneQ = clientPhone.trim().toLowerCase();
+
+      // Evitar loop: si ya auto-rellenamos este mismo valor, no repetir
+      const signature = `${nameQ}|${phoneQ}`;
+      if (signature === lastAutoFilledRef.current) return;
+
+      // 1) Nombre exacto → rellenar teléfono (si el teléfono está vacío o incompleto)
+      if (nameQ.length >= 2) {
+        const byName = clients.find((c) => c.name.toLowerCase().trim() === nameQ);
+        if (byName?.phone) {
+          const existingPhone = (byName.phone || '').trim();
+          if (existingPhone && clientPhone.trim() !== existingPhone) {
+            lastAutoFilledRef.current = `${nameQ}|${existingPhone.toLowerCase()}`;
+            setClientPhone(existingPhone);
+            return;
+          }
+        }
       }
+
+      // 2) Teléfono exacto (mín. 6 dígitos) → rellenar nombre (si el nombre está vacío)
+      const phoneDigits = phoneQ.replace(/\D/g, '');
+      if (phoneDigits.length >= 6 && !clientName.trim()) {
+        const byPhone = clients.find((c) => {
+          const cDigits = (c.phone || '').replace(/\D/g, '');
+          return cDigits === phoneDigits || cDigits.endsWith(phoneDigits) || phoneDigits.endsWith(cDigits);
+        });
+        if (byPhone) {
+          lastAutoFilledRef.current = `${byPhone.name.toLowerCase()}|${phoneQ}`;
+          setClientName(byPhone.name);
+        }
+      }
+    }, [clientName, clientPhone, clients, setClientName, setClientPhone]);
+
+    const suggestions = useMemo(() => {
+      const query = (focus === 'name' ? clientName : clientPhone).trim().toLowerCase();
+      if (!query || query.length < 1) return [];
+
+      return clients
+        .filter((c) => {
+          if (focus === 'name') {
+            return c.name.toLowerCase().includes(query);
+          }
+          // En teléfono comparamos también sin guiones/espacios
+          const qDigits = query.replace(/\D/g, '');
+          const cDigits = (c.phone || '').replace(/\D/g, '');
+          return (
+            (c.phone || '').toLowerCase().includes(query) ||
+            (qDigits.length >= 3 && cDigits.includes(qDigits))
+          );
+        })
+        .slice(0, 5);
+    }, [clients, clientName, clientPhone, focus]);
+
+    const pickClient = (c: Client) => {
+      const phone = c.phone || '';
+      lastAutoFilledRef.current = `${c.name.toLowerCase()}|${phone.toLowerCase()}`;
+      setClientName(c.name);
+      setClientPhone(phone); // ← SIEMPRE rellena teléfono si está registrado
+      setFocus(null);
     };
-    document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
-  }, []);
 
-  const suggestions = useMemo(() => {
-    const query = (focus === 'name' ? clientName : clientPhone).trim().toLowerCase();
-    if (!query || query.length < 1) return [];
-
-    return clients
-      .filter((c) => {
-        const inName = c.name.toLowerCase().includes(query);
-        const inPhone = (c.phone || '').toLowerCase().includes(query);
-        return focus === 'name' ? inName : inPhone;
-      })
-      .slice(0, 5);
-  }, [clients, clientName, clientPhone, focus]);
-
-  const pickClient = (c: Client) => {
-    setClientName(c.name);
-    setClientPhone(c.phone || '');
-    setFocus(null);
-  };
-
-  const clearClientFields = () => {
-    setClientName('');
-    setClientPhone('');
-  };
+    const clearClientFields = () => {
+      lastAutoFilledRef.current = '';
+      setClientName('');
+      setClientPhone('');
+    };
 
   // ═══ CHECKOUT ═══
   const handleCheckout = async (sendWhatsApp: boolean) => {
@@ -225,11 +273,15 @@ export const CheckoutSummary: React.FC = () => {
             type="text"
             placeholder={isFiado ? 'Nombre cliente *' : 'Cliente (opcional)'}
             value={clientName}
-            onChange={(e) => setClientName(e.target.value)}
+            onChange={(e) => {
+              lastAutoFilledRef.current = ''; // el usuario está editando a mano
+              setClientName(e.target.value);
+            }}
             onFocus={() => setFocus('name')}
             className={`w-full bg-slate-50 border rounded-xl pl-8 pr-8 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500 ${
               isFiado && !clientName ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200'
             }`}
+            autoComplete="off"
           />
           {(clientName || clientPhone) && (
             <button
@@ -251,9 +303,13 @@ export const CheckoutSummary: React.FC = () => {
             type="tel"
             placeholder="Teléfono WA (opcional)"
             value={clientPhone}
-            onChange={(e) => setClientPhone(e.target.value)}
+            onChange={(e) => {
+              lastAutoFilledRef.current = '';
+              setClientPhone(e.target.value);
+            }}
             onFocus={() => setFocus('phone')}
             className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500"
+            autoComplete="off"
           />
         </div>
 
@@ -261,7 +317,7 @@ export const CheckoutSummary: React.FC = () => {
         {focus && suggestions.length > 0 && (
           <div className="absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
             <p className="text-[9px] font-black text-slate-400 uppercase px-3 py-2 border-b border-slate-100">
-              Clientes existentes ({suggestions.length})
+              Clientes existentes · toca para rellenar todo
             </p>
             <div className="max-h-52 overflow-y-auto">
               {suggestions.map((c) => (
@@ -275,20 +331,23 @@ export const CheckoutSummary: React.FC = () => {
                     {c.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-slate-900 truncate">
-                      {c.name}
+                    <p className="text-xs font-bold text-slate-900 truncate">{c.name}</p>
+                    <p className="text-[10px] text-slate-500 font-medium">
+                      {c.phone ? c.phone : 'Sin teléfono guardado'}
                     </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                    {(c.totalSpentUSD || 0) > 0 && (
+                      <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+                        ${c.totalSpentUSD.toFixed(0)}
+                      </span>
+                    )}
                     {c.phone && (
-                      <p className="text-[10px] text-slate-500 font-medium">
-                        {c.phone}
-                      </p>
+                      <span className="text-[8px] font-bold text-blue-500">
+                        + tel
+                      </span>
                     )}
                   </div>
-                  {(c.totalSpentUSD || 0) > 0 && (
-                    <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full flex-shrink-0">
-                      ${c.totalSpentUSD.toFixed(0)}
-                    </span>
-                  )}
                 </button>
               ))}
             </div>
