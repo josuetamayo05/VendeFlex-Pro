@@ -100,7 +100,7 @@ export const ClientDetail: React.FC<Props> = ({ client, onClose }) => {
       alert('Este cliente aún no tiene ventas para armar el mensaje.');
       return;
     }
-    // Última venta
+    // Última ventCheca
     const last = [...clientSales].sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     )[0];

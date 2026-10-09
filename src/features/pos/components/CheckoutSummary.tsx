@@ -36,7 +36,6 @@ export const CheckoutSummary: React.FC = () => {
   const updateStock = useProductsStore((s) => s.updateStock);
   const addSale = useSalesStore((s) => s.addSale);
   const clients = useClientsStore((s) => s.clients);
-  const addClient = useClientsStore((s) => s.addClient);
   const addDebt = useClientsStore((s) => s.addDebt);
   const navigateTo = useAppStore((s) => s.navigateTo);
 
@@ -191,29 +190,18 @@ export const CheckoutSummary: React.FC = () => {
       }
     });
 
+        // 4. Si es FIADO, registrar la deuda en el cliente (que ya fue creado/actualizado por addSale)
     if (clientName.trim()) {
-      const client = clients.find(
-        (c) => c.name.toLowerCase().trim() === clientName.toLowerCase().trim()
+      // Obtenemos la lista FRESCA de clientes directamente del store
+      const freshClients = useClientsStore.getState().clients;
+      const cleanName = clientName.trim().toLowerCase();
+      const targetClient = freshClients.find(
+        (c) => c.name.trim().toLowerCase() === cleanName
       );
 
-      let targetClientId = client?.id;
-
-      if (!client) {
-        addClient({
-          name: clientName.trim(),
-          phone: clientPhone.trim() || undefined,
-          tags: isFiado ? ['Fiado'] : ['Cliente'],
-        });
-        const updatedClients = useClientsStore.getState().clients;
-        const newClient = updatedClients.find(
-          (c) => c.name.toLowerCase().trim() === clientName.toLowerCase().trim()
-        );
-        targetClientId = newClient?.id;
-      }
-
-      if (isFiado && targetClientId) {
+      if (isFiado && targetClient) {
         const concepts = items.map((i) => `${i.name} x${i.quantity}`).join(', ');
-        addDebt(targetClientId, {
+        addDebt(targetClient.id, {
           amountUSD: subtotalUSD,
           amountCUP: subtotalCUP,
           concept: concepts,

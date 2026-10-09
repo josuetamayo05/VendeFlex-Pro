@@ -12,6 +12,7 @@ interface ClientsStore {
   deleteClient: (id: number) => void;
   getClientById: (id: number) => Client | undefined;
   searchClients: (query: string) => Client[];
+  deduplicateClients: () => void; // 👈 UNIFICA DUPLICADOS EXISTENTES
   resetClients: () => void;
   resetToMocks: () => void;
   addDebt: (clientId: number, debt: Omit<ClientDebt, 'id'>) => void;
@@ -66,6 +67,32 @@ export const useClientsStore = create<ClientsStore>()(
             (c.phone && c.phone.includes(q))
         );
       },
+
+      // 🛠️ FUSIONA CLIENTES DUPLICADOS EN UNA SOLA FICHA LIMPIA
+      deduplicateClients: () =>
+        set((s) => {
+          const map = new Map<string, Client>();
+
+          s.clients.forEach((c) => {
+            const key = c.name.trim().toLowerCase();
+            if (!key) return;
+
+            if (!map.has(key)) {
+              map.set(key, { ...c, debts: [...(c.debts || [])], tags: [...(c.tags || [])] });
+            } else {
+              const existing = map.get(key)!;
+              existing.totalSpentUSD = (existing.totalSpentUSD || 0) + (c.totalSpentUSD || 0);
+              if (!existing.phone && c.phone) existing.phone = c.phone;
+              if (!existing.notes && c.notes) existing.notes = c.notes;
+              if (c.debts && c.debts.length > 0) {
+                existing.debts = [...existing.debts, ...c.debts];
+              }
+              existing.tags = Array.from(new Set([...existing.tags, ...(c.tags || [])]));
+            }
+          });
+
+          return { clients: Array.from(map.values()) };
+        }),
 
       resetClients: () => set({ clients: [], selectedClientId: null }),
       resetToMocks: () => set({ clients: [], selectedClientId: null }),
