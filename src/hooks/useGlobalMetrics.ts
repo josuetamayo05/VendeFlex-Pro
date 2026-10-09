@@ -18,8 +18,8 @@ export const useGlobalMetrics = () => {
   const sales = useSalesStore((s) => s.sales);
   const clients = useClientsStore((s) => s.clients);
 
+  const financeTransactions = useFinanceStore((s) => s.transactions);
   const totalExpenses = useFinanceStore((s) => s.getTotalExpensesUSD());
-  const totalReinvested = useFinanceStore((s) => s.getTotalReinvestedUSD());
 
   const exchangeRate = useAppStore((s) => s.exchangeRate);
   const activeInvestmentsCount = useInvestmentsStore((s) =>
@@ -27,19 +27,61 @@ export const useGlobalMetrics = () => {
   );
 
   return useMemo(() => {
-    // 1. INVERSIÓN
-    const grossInvestmentUSD = investments.reduce((sum, inv) => {
-      return sum + toUSD(inv.totalInvestment, inv.currency, exchangeRate);
+    // ── 1. DETECCIÓN EXACTA DE REINVERSIONES DESDE EL ARRAY DE INVERSIONES ──
+    const reinvestedFromInvestments = investments.reduce((sum, inv) => {
+      const invAny = inv as { fundingSource?: string; fundedFromInvestmentId?: number | null };
+      const isReinvested =
+        invAny.fundingSource === 'reinvested' ||
+        (invAny.fundedFromInvestmentId !== null && invAny.fundedFromInvestmentId !== undefined);
+
+      if (isReinvested) {
+        return sum + toUSD(inv.totalInvestment || 0, inv.currency, exchangeRate);
+      }
+      return sum;
     }, 0);
 
-    // Lo que realmente salió de tu bolsillo personal
+    // Sumar reinversiones manuales de Bóveda que no estén ligadas a una inversión ya contada
+    const reinvestedFromFinance = financeTransactions
+      .filter((t) => t.type === 'reinvestment')
+      .reduce((sum, t) => {
+        if (t.toInvestmentId) {
+          const targetInv = investments.find((i) => i.id === t.toInvestmentId) as
+            | { fundingSource?: string; fundedFromInvestmentId?: number | null }
+            | undefined;
+          if (
+            targetInv &&
+            (targetInv.fundingSource === 'reinvested' || targetInv.fundedFromInvestmentId)
+          ) {
+            return sum; // Ya contabilizada en la inversión
+          }
+        }
+        return sum + (t.amountUSD || 0);
+      }, 0);
+
+    const totalReinvested = reinvestedFromInvestments + reinvestedFromFinance;
+
+    // ── 2. INVERSIÓN BRUTA Y DE BOLSILLO ──────────────────
+    const grossInvestmentUSD = investments.reduce((sum, inv) => {
+      return sum + toUSD(inv.totalInvestment || 0, inv.currency, exchangeRate);
+    }, 0);
+
+    // Lo que realmente salió de tu bolsillo personal (JSConcept P001 = $474.99)
     const netPocketInvestmentUSD = Math.max(0, grossInvestmentUSD - totalReinvested);
 
-    // 2. VENTAS (Cobrado vs Fiado)
+    // ── 3. VENTAS (Cobrado vs Fiado) ──────────────────────
     const collectedSales = sales.filter((s) => !s.isFiado);
+    const fiadoSales = sales.filter((s) => s.isFiado);
 
-    // 3. GANANCIA DE HOY (fecha LOCAL del usuario, no UTC)
+    const totalRevenueCollected = collectedSales.reduce((s, x) => s + (x.totalUSD || 0), 0);
+    const totalProfitCollected = collectedSales.reduce(
+      (s, x) => s + getLiveSaleProfitUSD(x),
+      0
+    );
+    const totalRevenueFiado = fiadoSales.reduce((s, x) => s + (x.totalUSD || 0), 0);
+
+    // ── 4. GANANCIA DE HOY (Fecha local) ─────────────────
     const isSameLocalDay = (isoDate: string): boolean => {
+      if (!isoDate) return false;
       const d = new Date(isoDate);
       const now = new Date();
       return (
@@ -48,26 +90,12 @@ export const useGlobalMetrics = () => {
         d.getDate() === now.getDate()
       );
     };
+
     const todaySales = collectedSales.filter((s) => isSameLocalDay(s.date));
-    const fiadoSales = sales.filter((s) => s.isFiado);
+    const gananciaHoy = todaySales.reduce((s, x) => s + getLiveSaleProfitUSD(x), 0);
+    const ingresosHoy = todaySales.reduce((s, x) => s + (x.totalUSD || 0), 0);
 
-    const totalRevenueCollected = collectedSales.reduce((s, x) => s + x.totalUSD, 0);
-
-    const totalProfitCollected = collectedSales.reduce(
-      (s, x) => s + getLiveSaleProfitUSD(x),
-      0
-    ); 
-
-    const gananciaHoy = todaySales.reduce(
-      (s, x) => s + getLiveSaleProfitUSD(x),
-      0
-    );
-    
-    const totalRevenueFiado = fiadoSales.reduce((s, x) => s + x.totalUSD, 0);
-
-    const ingresosHoy = todaySales.reduce((s, x) => s + x.totalUSD, 0);
-
-    // 4. STOCK
+    // ── 5. STOCK A COSTO ──────────────────────────────────
     const stockAtCostUSD = products.reduce((sum, p) => {
       return sum + toUSD(p.cost || 0, p.currency, exchangeRate) * (p.stock || 0);
     }, 0);
@@ -78,24 +106,25 @@ export const useGlobalMetrics = () => {
 
     const totalStockUnits = products.reduce((sum, p) => sum + (p.stock || 0), 0);
 
-    // 5. POR COBRAR
+    // ── 6. POR COBRAR ─────────────────────────────────────
     const totalDebtUSD = clients.reduce((sum, c) => sum + getClientDebtUSD(c), 0);
     const debtorsCount = clients.filter((c) => getClientDebtUSD(c) > 0).length;
     const porCobrarUSD = totalDebtUSD > 0 ? totalDebtUSD : totalRevenueFiado;
 
-    // 6. 💵 EFECTIVO ACTUAL EN CAJA
-    const efectivoEnCajaUSD = totalRevenueCollected - netPocketInvestmentUSD - totalExpenses;
+    // ── 7. 💵 EFECTIVO ACTUAL EN CAJA ─────────────────────
+    // Ingresos cobrados − Gastos de bóveda − Dinero reinvertido en otros lotes
+    const efectivoEnCajaUSD = totalRevenueCollected - totalExpenses - totalReinvested;
 
-    // 7. 🟢 GANANCIA LÍQUIDA LIBRE (Efectivo ganado después de restar costos y gastos)
+    // ── 8. GANANCIA LÍQUIDA LIBRE ─────────────────────────
     const liquidProfitUSD = Math.max(
       0,
       totalProfitCollected - totalExpenses - totalReinvested
     );
 
-    // 8. 🏦 PATRIMONIO TOTAL (Efectivo + Valor del Stock a costo + Lo que te deben)
+    // ── 9. PATRIMONIO TOTAL ──────────────────────────────
     const patrimonioTotalUSD = efectivoEnCajaUSD + stockAtCostUSD + porCobrarUSD;
 
-    // 9. ROI REAL
+    // ── 10. RATIOS ────────────────────────────────────────
     const roiPercent =
       netPocketInvestmentUSD > 0
         ? (totalProfitCollected / netPocketInvestmentUSD) * 100
@@ -109,7 +138,7 @@ export const useGlobalMetrics = () => {
     return {
       efectivoEnCajaUSD,
       patrimonioTotalUSD,
-      liquidProfitUSD, // 👈 AHORA SÍ EXPUESTO CORRECTAMENTE
+      liquidProfitUSD,
 
       gananciaHoy,
       ingresosHoy,
@@ -141,8 +170,8 @@ export const useGlobalMetrics = () => {
     investments,
     sales,
     clients,
+    financeTransactions,
     totalExpenses,
-    totalReinvested,
     exchangeRate,
     activeInvestmentsCount,
   ]);
