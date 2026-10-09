@@ -170,6 +170,7 @@ export const InvestmentDetailScreen: React.FC = () => {
         fundingSource === 'reinvested' ? fundedFromId : null,
     } as Partial<typeof investment>);
 
+
     setShowEdit(false);
     // Las métricas se recalculan solas (envío/unidad, ganancias, ROI…)
   };

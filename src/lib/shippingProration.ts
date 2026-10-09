@@ -1,8 +1,9 @@
 // src/lib/shippingProration.ts
 import { useProductsStore } from '@/store/useProductsStore';
 import { useInvestmentsStore } from '@/store/useInvestmentsStore';
+import { useSalesStore } from '@/store/useSalesStore';
 import { EXCHANGE_RATE } from '@/lib/constants';
-import type { ProductItem } from '@/types';
+import type { ProductItem, Sale } from '@/types';
 
 const toUSD = (amount: number, currency?: string) => {
   const num = Number(amount) || 0;
@@ -10,19 +11,29 @@ const toUSD = (amount: number, currency?: string) => {
   return currency === 'CUP' ? num / rate : num;
 };
 
-/** Unidades totales del lote */
+/** Unidades totales del lote (incluye productos con initialQuantity faltante) */
 export const getInvestmentTotalUnits = (investmentId: number): number => {
   try {
     const productsState = useProductsStore.getState();
+    const salesState = useSalesStore.getState();
+
     if (!productsState || !Array.isArray(productsState.products)) return 0;
+    const sales: Sale[] = salesState?.sales || [];
 
     const products = productsState.products.filter(
       (p) => p && p.investmentId === investmentId
     );
 
     return products.reduce((sum, p) => {
-      const initQty = (p as { initialQuantity?: number })?.initialQuantity ?? p?.stock ?? 0;
-      return sum + (Number(initQty) || 0);
+      if (p.initialQuantity !== undefined && p.initialQuantity !== null && p.initialQuantity > 0) {
+        return sum + p.initialQuantity;
+      }
+      const soldQty = sales.reduce((sSum: number, sale: Sale) => {
+        const item = sale.items?.find((i) => i.productId === p.id);
+        return sSum + (item?.quantity || 0);
+      }, 0);
+
+      return sum + (p.stock || 0) + soldQty;
     }, 0);
   } catch {
     return 0;
